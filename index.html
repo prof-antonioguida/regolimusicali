@@ -1,0 +1,2634 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Regoli musicali - Suoni e Pause</title>
+<style>
+  :root{
+    --ink:#1c1c1c;
+    --green:#2e8b3d;
+    --ref-brown:#8a5a34;
+    --c-whole:#6393f2;
+    --c-half:#e8766b;
+    --c-quarter:#62a86e;
+    --c-eighth:#f4d777;
+    --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0; height:100%;}
+  body{
+    font-family:Arial, Helvetica, "Segoe UI", sans-serif;
+    color:var(--ink);
+    background-color:#fbfbf9;
+    padding-bottom:0;
+    display:flex;
+    flex-direction:column;
+    height:100vh;
+    overflow:hidden;
+  }
+
+  .worksheet-section{
+    padding-top:4px;
+    padding-bottom:20px;
+    flex:1;
+    min-height:0;
+    overflow-y:auto;
+  }
+
+  .side-panel{flex:1 1 300px; display:flex; flex-direction:column; gap:12px; justify-content:flex-start; overflow:visible;}
+  .side-header{text-align:center; margin-bottom:10px;}
+  .side-header h1{margin:0; font-size:1.6rem; font-weight:800;}
+  .side-header .credit{margin:4px 0 0; color:#555; font-size:.8rem; font-weight:700;}
+  .side-header .credit a{color:#555;}
+  .print-header-title{display:none;}
+  .print-header-author{display:none;}
+  .titlebar-section{display:flex; gap:24px; padding:6px 24px 10px; flex-wrap:wrap; flex-shrink:0;}
+  .titlebar-field{display:flex; align-items:center; gap:8px; font-size:.85rem; font-weight:700; color:#333;}
+  .titlebar-field input{padding:6px 10px; border:2px solid var(--ink); border-radius:6px; font-size:.9rem; width:220px; font-family:inherit;}
+
+  .toolbar{display:flex; flex-wrap:wrap; gap:18px; align-items:stretch; padding:14px 24px; flex-shrink:0;}
+
+  .panel{background:#fff; border:3px solid var(--ink); border-radius:var(--radius); padding:14px; box-shadow:3px 3px 0 rgba(0,0,0,.08); height:296px; overflow:hidden;}
+  .panel.side-panel{overflow:visible;}
+  .panel-header{background:var(--ink); color:#fff; font-weight:800; text-align:center; padding:7px 4px; margin:-14px -14px 12px; border-radius:7px 7px 0 0; font-size:.82rem; letter-spacing:1px;}
+
+  /* ----- values (reference) table ----- */
+  #valuesRows{display:flex; flex-direction:column; gap:12px;}
+  .value-row{display:grid; grid-template-columns:40px 40px 190px 62px 68px; align-items:center; gap:10px;}
+  .value-icon{width:40px; height:44px; display:flex; align-items:center; justify-content:center;}
+  .value-icon.small-icon svg{width:78%; height:78%;}
+  .value-icon svg{width:100%; height:100%; display:block;}
+  .value-bar-row{display:flex; height:52px; border:1.5px solid var(--ink); border-radius:3px; overflow:hidden;}
+  .bar-cell{height:100%; border-right:1px solid rgba(0,0,0,.2); box-sizing:border-box; position:relative;}
+  .value-frac{font-weight:800; text-align:center; font-size:1.55rem;}
+  .value-pie{width:52px; height:52px; display:flex; align-items:center; justify-content:center;}
+
+  /* ----- sounds panel ----- */
+  .sounds-row{display:flex; flex-direction:column; gap:12px;}
+  .rod{display:flex; align-items:center; justify-content:center; cursor:grab; user-select:none; touch-action:none; overflow:visible;}
+  .rod:active{cursor:grabbing;}
+  .rod-icon{display:flex; align-items:center; justify-content:center;}
+  .rod-icon svg{height:28px; width:auto; display:block;}
+  .sound-rod{border:2px solid var(--ink); border-radius:6px; box-shadow:2px 2px 0 rgba(0,0,0,.15); justify-content:flex-start;}
+  .sound-rod .rod-icon{height:100%; flex-shrink:0;}
+
+  /* ----- pauses panel ----- */
+  .pauses-row{display:flex; flex-direction:column; align-items:flex-start; gap:12px;}
+  .pause-rod{position:relative; border:2px solid var(--ink); border-radius:6px; background:#dcdcdc; box-shadow:2px 2px 0 rgba(0,0,0,.15); overflow:hidden;}
+  .pause-rod .rod-icon{padding:3px 6px;}
+
+  /* ----- tempo panel (metro + metronomo) ----- */
+  .tempo-panel{display:flex; flex-direction:column; min-width:190px;}
+  .tempo-body{display:flex; flex-direction:column; gap:16px; flex:1; justify-content:space-between;}
+  .control-group{display:flex; flex-direction:column; gap:6px;}
+  .control-label{font-weight:700; font-size:.82rem; color:#333;}
+  .meter-buttons{display:flex; gap:6px;}
+  .meter-btn{padding:7px 10px; border:2px solid var(--ink); border-radius:6px; background:#fff; font-weight:700; cursor:pointer; font-size:.9rem;}
+  .meter-btn.active{background:var(--ink); color:#fff;}
+  .meter-btn:hover{filter:brightness(.95);}
+  .metronome-group{align-items:center; text-align:center;}
+  .metro-btn{background:none; border:none; cursor:pointer; padding:0;}
+  .metro-hint{font-size:.78rem; color:#555; margin-top:2px;}
+  .bpm-label{font-size:.85rem; font-weight:600;}
+  .bpm-row{display:flex; align-items:center; gap:6px;}
+  .bpm-step{width:24px; height:24px; border:2px solid var(--ink); border-radius:50%; background:#fff; font-weight:800; cursor:pointer; padding:0; line-height:1; font-size:14px;}
+  .bpm-step:hover{background:#f0f0f0;}
+  input[type=range]{width:130px;}
+
+  /* ----- worksheet toolbar ----- */
+  .worksheet-toolbar{display:flex; flex-direction:column; gap:8px;}
+  .toolbar-row{display:flex; gap:8px; flex-wrap:wrap; align-items:center;}
+  .btn{padding:8px 14px; border:2px solid var(--ink); border-radius:7px; background:#fff; font-weight:700; cursor:pointer; font-size:.88rem;}
+  .btn:hover{background:#f0f0f0;}
+  .btn-icon{width:38px; height:38px; border:2px solid var(--ink); border-radius:7px; background:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0;}
+  .btn-icon:hover{background:#f0f0f0;}
+  .btn-icon:disabled{opacity:.35; cursor:default; background:#fff;}
+  .lock-toggle{display:flex; align-items:center; justify-content:center; gap:7px; font-size:.85rem; font-weight:700; cursor:pointer; padding:7px 10px; border:2px solid var(--ink); border-radius:7px; background:#fff; width:176px; flex-shrink:0;}
+  .lock-toggle input{width:16px; height:16px; cursor:pointer; margin:0;}
+  .volume-control{display:flex; align-items:center; gap:6px; padding:7px 10px; border:2px solid var(--ink); border-radius:7px; background:#fff; width:130px; flex-shrink:0; justify-content:center;}
+  .row-spacer{width:38px; flex-shrink:0;}
+  .verifica-separator-row{padding:2px 0;}
+  .verifica-separator{width:100%; height:2px; background:#ddd;}
+  .verifica-title{font-size:.78rem; font-weight:800; letter-spacing:1px; color:#555;}
+  .dropdown-wrap{position:relative;}
+  .verifica-dropdown{position:absolute; top:44px; left:0; background:#fff; border:2px solid var(--ink); border-radius:8px; padding:10px 12px; z-index:50; box-shadow:0 6px 18px rgba(0,0,0,.18); display:none; min-width:150px;}
+  .verifica-dropdown.open{display:block;}
+  .verifica-dropdown label{display:flex; align-items:center; gap:6px; font-size:.85rem; padding:3px 0; cursor:pointer; white-space:nowrap;}
+  .verifica-dropdown input[type=number]{width:60px; padding:3px 5px; font-size:.9rem;}
+  .verifica-dropdown-title{font-size:.72rem; font-weight:800; color:#666; text-transform:uppercase; margin-bottom:4px;}
+  .volume-control input[type=range]{width:80px;}
+  .hint-text{padding:0 24px; color:#444; font-size:.88rem; margin-bottom:10px;}
+
+  /* ----- worksheet: fixed 5 pitch rows per line, max 8 measures per line (then wraps), polyphony allowed ----- */
+  .worksheet-wrap{margin:0 24px 30px; overflow-x:hidden; border:3px solid var(--ink); border-radius:10px; background:#fff;}
+  #worksheet{display:flex; flex-direction:column; width:max-content;}
+  .worksheet-line{display:flex; flex-direction:column;}
+  .worksheet-line + .worksheet-line{border-top:3px solid var(--ink);}
+  .measure-numbers-row{display:flex;}
+  .number-gutter{flex-shrink:0;}
+  .measure-number-cell{flex-shrink:0; text-align:center; font-size:.72rem; font-weight:700; color:#666; padding:2px 0;}
+  .line-body{display:flex; align-items:flex-start;}
+  .keyboard-col{position:sticky; left:0; z-index:6; background:#fff; display:flex; flex-direction:column; border-right:2px solid var(--ink);}
+  .key-cell{width:58px; box-sizing:border-box; border-bottom:1px solid #ccc; background:#fff; transition:background-color .05s;}
+  .key-cell.key-active{background:#ffd23f;}
+  .key-cell:last-child{border-bottom:none;}
+  .key-cell:first-child{border-top:1px solid #ddd;}
+  .black-key{position:absolute; left:0; width:40px; height:21px; background:#161616; border:1px solid #000; border-radius:0 4px 4px 0;}
+  .label-col{position:sticky; left:58px; z-index:5; background:#fff; display:flex; flex-direction:column; border-right:3px solid var(--ink);}
+  .label-cell{width:50px; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:.85rem;}
+  .label-cell + .label-cell{border-top:1px solid #ddd;}
+  .label-cell:first-child{border-top:1px solid #ddd;}
+  .measures-track{position:relative; display:flex;}
+  .measure{position:relative; flex-shrink:0; border-right:2px solid var(--ink);}
+  .measure:last-child{border-right:none;}
+  .lanes{display:flex; flex-direction:column;}
+  .lane{display:flex;}
+  .lane + .lane{border-top:1px solid #ddd;}
+  .lane:first-child{border-top:1px solid #ddd;}
+  .row-square{height:100%; border-right:1px solid #ddd; flex-shrink:0; box-sizing:border-box;}
+  .row-square:last-child{border-right:none;}
+  .row-items{position:absolute; inset:0; pointer-events:none;}
+
+  .placed-rod{position:absolute; border:2px solid var(--ink); border-radius:3px; display:flex; align-items:center; justify-content:center; pointer-events:auto; cursor:grab; box-sizing:border-box;}
+  .placed-rod:active{cursor:grabbing;}
+  .placed-sound{justify-content:flex-start;}
+  .placed-sound .rod-icon{height:100%; flex-shrink:0;}
+  .placed-rod:hover{box-shadow:0 0 0 3px rgba(224,72,58,.4); z-index:2;}
+  .delete-btn{position:absolute; top:2px; right:2px; width:16px; height:16px; border-radius:50%; background:var(--c-half); color:#fff; border:1.5px solid var(--ink); font-size:12px; line-height:1; cursor:pointer; padding:0; opacity:0; z-index:3;}
+  .placed-rod:hover .delete-btn{opacity:1;}
+  .placed-pause{background:rgba(160,160,160,.5); overflow:hidden;}
+  .placed-pause .rod-icon{padding:1px 3px;}
+  .pause-expand-btn{position:absolute; left:50%; bottom:2px; transform:translateX(-50%); width:18px; height:18px; border-radius:50%; background:#fff; border:1.5px solid var(--ink); display:flex; align-items:center; justify-content:center; cursor:pointer; opacity:0; z-index:3; padding:0;}
+  .placed-pause:hover .pause-expand-btn{opacity:1;}
+
+  .drop-preview{position:absolute; border-radius:3px; border:2px dashed; pointer-events:none;}
+  .drop-preview.ok{border-color:var(--green); background:rgba(46,139,61,.18);}
+  .drop-preview.bad{border-color:#c0392b; background:rgba(192,57,43,.18);}
+
+  .drag-ghost{opacity:.92; transform:rotate(-2deg); box-shadow:4px 6px 14px rgba(0,0,0,.35); z-index:9999;}
+  .playhead{position:absolute; top:0; width:3px; background:rgba(214,40,40,.85); pointer-events:none; z-index:8; display:none; box-shadow:0 0 4px rgba(214,40,40,.6);}
+
+  .modal-overlay{position:fixed; inset:0; background:rgba(20,20,20,.55); display:flex; align-items:center; justify-content:center; z-index:2000; padding:24px;}
+  .modal-box{background:#fff; border-radius:10px; width:100%; max-width:1100px; max-height:90vh; display:flex; flex-direction:column; box-shadow:0 12px 44px rgba(0,0,0,.35);}
+  .modal-box:fullscreen{ max-width:100vw; max-height:100vh; width:100vw; height:100vh; border-radius:0; }
+  .modal-header{display:flex; justify-content:space-between; align-items:center; padding:14px 20px; border-bottom:2px solid var(--ink); font-weight:800; font-size:1.15rem;}
+  .modal-header-btns{display:flex; gap:8px;}
+  .modal-close-btn{background:none; border:2px solid var(--ink); border-radius:6px; width:32px; height:32px; font-size:1.3rem; cursor:pointer; line-height:1; padding:0; color:#1c1c1c;}
+  .modal-close-btn:hover{background:#f0f0f0;}
+  .modal-body{padding:20px 24px; overflow:auto;}
+  .staff-system{display:block; margin:0 auto 6px;}
+  .notation-empty{color:#666; font-size:.95rem; text-align:center; padding:30px 0;}
+  .notation-print-only{ display:none; }
+
+  .error-toast{position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:#c0392b; color:#fff; padding:12px 22px; border-radius:8px; font-weight:700; font-size:.92rem; box-shadow:0 6px 20px rgba(0,0,0,.3); z-index:3000; max-width:80vw; text-align:center;}
+
+  @media (max-width:640px){
+    .value-row{grid-template-columns:36px 1fr 40px 30px;}
+  }
+
+  @media print{
+    @page{ size: A4 landscape; margin: 10mm; }
+    *{ -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    body{ background-image:none !important; background-color:#fff !important; padding-bottom:0; display:block !important; height:auto !important; overflow:visible !important; }
+    .worksheet-section{ overflow:visible !important; }
+    .toolbar, .worksheet-toolbar, .hint-text, .titlebar-section{ display:none !important; }
+    .print-header-title{ text-align:center; font-weight:800; font-size:20pt; margin:0 24px 2pt 24px; }
+    .print-header-author{ text-align:right; font-size:12pt; margin:0 24px 10pt 24px; }
+    .worksheet-wrap{ overflow:visible; margin:0; box-shadow:none; width:fit-content; max-width:100%; }
+    #printScaleBox{ transform-origin: top left; }
+    .worksheet-line{ page-break-inside: avoid; break-inside: avoid; }
+    body.printing-notation .worksheet-section{ display:none !important; }
+    .modal-overlay{ display:none !important; }
+    body.printing-notation .notation-print-only{ display:block !important; margin:10px 24px; }
+    body.printing-notation .notation-print-only .staff-system{ page-break-inside: avoid; break-inside: avoid; margin-bottom:14px; }
+  }
+</style>
+</head>
+<body>
+
+<section class="toolbar">
+  <div class="panel values-panel">
+    <div class="panel-header">VALORI DI RIFERIMENTO (SUONI E PAUSE)</div>
+    <div id="valuesRows"></div>
+  </div>
+
+  <div class="panel sounds-panel">
+    <div class="panel-header">REGOLI DI SUONO</div>
+    <div class="sounds-row" id="soundsRow"></div>
+  </div>
+
+  <div class="panel pauses-panel">
+    <div class="panel-header">REGOLI DI PAUSA</div>
+    <div class="pauses-row" id="pausesRow"></div>
+  </div>
+
+  <div class="panel tempo-panel">
+    <div class="panel-header">TEMPO</div>
+    <div class="tempo-body">
+    <div class="control-group">
+      <div class="control-label">Metro</div>
+      <div class="meter-buttons" id="meterButtons">
+        <button type="button" class="meter-btn active" data-meter="4">4/4</button>
+        <button type="button" class="meter-btn" data-meter="3">3/4</button>
+        <button type="button" class="meter-btn" data-meter="2">2/4</button>
+      </div>
+    </div>
+    <div class="control-group metronome-group">
+      <div class="control-label">Metronomo</div>
+      <button type="button" class="metro-btn" id="metroToggle" aria-pressed="false" title="Avvia o ferma il metronomo">
+        <svg viewBox="0 0 96 132" width="65" height="89">
+          <rect x="15" y="123" width="9" height="6" rx="1" fill="#1c1c1c"/>
+          <rect x="66" y="123" width="9" height="6" rx="1" fill="#1c1c1c"/>
+          <path d="M23 95 L67 95 L77 123 L13 123 Z" fill="#b8853a" stroke="#5c3a1c" stroke-width="1.5" stroke-linejoin="round"/>
+          <rect x="70" y="105" width="9" height="5.5" rx="1.5" fill="#9a9a9a" stroke="#5a5a5a" stroke-width="1"/>
+          <circle cx="87" cy="108" r="7.2" fill="none" stroke="#8f8f8f" stroke-width="3.4"/>
+          <circle cx="87" cy="108" r="7.2" fill="none" stroke="#bdbdbd" stroke-width="1"/>
+          <path d="M35 18 L55 18 L67 95 L23 95 Z" fill="#38383b" stroke="#161618" stroke-width="1.5" stroke-linejoin="round"/>
+          <path d="M41.5 21 L48.5 21 L52 92 L38 92 Z" fill="#b9b8be"/>
+          <line x1="40.3" y1="35" x2="49.7" y2="35" stroke="#8c8b90" stroke-width="0.8"/>
+          <line x1="39.9" y1="50" x2="50.1" y2="50" stroke="#8c8b90" stroke-width="0.8"/>
+          <line x1="39.4" y1="65" x2="50.6" y2="65" stroke="#8c8b90" stroke-width="0.8"/>
+          <line x1="38.9" y1="80" x2="51.1" y2="80" stroke="#8c8b90" stroke-width="0.8"/>
+          <line x1="45" y1="21" x2="45" y2="92" stroke="#8c8b90" stroke-width="0.6" opacity="0.6"/>
+          <path d="M45 4 L58 19 L32 19 Z" fill="#8e6932" stroke="#5c3a1c" stroke-width="1.5" stroke-linejoin="round"/>
+          <rect x="42.5" y="14" width="5" height="6" rx="1" fill="#232324"/>
+          <g id="pendulumArm" style="transform-origin:45px 90px;">
+            <line x1="45" y1="90" x2="45" y2="9" stroke="#9a9a9a" stroke-width="2.6" stroke-linecap="round"/>
+            <line x1="45" y1="90" x2="45" y2="9" stroke="#c9c9c9" stroke-width="1.1" stroke-linecap="round"/>
+            <circle cx="45" cy="9" r="2.6" fill="#8f8f8f" stroke="#5a5a5a" stroke-width="1"/>
+            <rect x="38" y="40" width="14" height="9" rx="1.5" fill="#c6c6c6" stroke="#5a5a5a" stroke-width="1.3"/>
+            <circle cx="41.5" cy="44.5" r="1.1" fill="#5a5a5a"/>
+            <circle cx="48.5" cy="44.5" r="1.1" fill="#5a5a5a"/>
+          </g>
+        </svg>
+      </button>
+      <label class="bpm-label">Velocit&agrave;: <span id="bpmValue">60</span> bpm</label>
+      <div class="bpm-row">
+        <button type="button" class="bpm-step" id="bpmMinus" aria-label="Diminuisci di 1 bpm">-</button>
+        <input type="range" id="bpmSlider" min="40" max="208" value="60">
+        <button type="button" class="bpm-step" id="bpmPlus" aria-label="Aumenta di 1 bpm">+</button>
+      </div>
+    </div>
+    </div>
+  </div>
+
+  <div class="panel side-panel">
+    <div class="side-header">
+      <h1>Regoli musicali</h1>
+      <p class="credit">Applicazione didattica del prof. Antonio Guida &middot; <a href="mailto:furtwangler900@gmail.com">furtwangler900@gmail.com</a></p>
+    </div>
+    <div class="worksheet-toolbar">
+      <div class="toolbar-row">
+      <button type="button" class="btn-icon" id="undoBtn" title="Annulla ultima operazione" disabled>
+        <svg viewBox="0 0 24 24" width="20" height="20"><path d="M8 8 L4 12 L8 16" fill="none" stroke="#1c1c1c" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 12 L15 12 A6 6 0 0 1 15 24 L10 24" fill="none" stroke="#1c1c1c" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <button type="button" class="btn-icon" id="redoBtn" title="Ripristina ultima operazione" disabled>
+        <svg viewBox="0 0 24 24" width="20" height="20"><path d="M16 8 L20 12 L16 16" fill="none" stroke="#1c1c1c" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M20 12 L9 12 A6 6 0 0 0 9 24 L14 24" fill="none" stroke="#1c1c1c" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <button type="button" class="btn-icon" id="removeMeasureBtn" title="Rimuovi misura">
+        <svg viewBox="0 0 24 24" width="20" height="20">
+          <rect x="3" y="5" width="14" height="14" rx="1.5" fill="none" stroke="#1c1c1c" stroke-width="2"/>
+          <line x1="9" y1="5" x2="9" y2="19" stroke="#1c1c1c" stroke-width="1.5"/>
+          <line x1="13" y1="5" x2="13" y2="19" stroke="#1c1c1c" stroke-width="1.5"/>
+          <circle cx="19" cy="19" r="5" fill="#c0392b" stroke="#1c1c1c" stroke-width="1.3"/>
+          <line x1="16.7" y1="19" x2="21.3" y2="19" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/>
+        </svg>
+      </button>
+      <button type="button" class="btn-icon" id="addMeasureBtn" title="Aggiungi misura">
+        <svg viewBox="0 0 24 24" width="20" height="20">
+          <rect x="3" y="5" width="14" height="14" rx="1.5" fill="none" stroke="#1c1c1c" stroke-width="2"/>
+          <line x1="9" y1="5" x2="9" y2="19" stroke="#1c1c1c" stroke-width="1.5"/>
+          <line x1="13" y1="5" x2="13" y2="19" stroke="#1c1c1c" stroke-width="1.5"/>
+          <circle cx="19" cy="19" r="5" fill="#2e8b3d" stroke="#1c1c1c" stroke-width="1.3"/>
+          <line x1="19" y1="16.7" x2="19" y2="21.3" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/>
+          <line x1="16.7" y1="19" x2="21.3" y2="19" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/>
+        </svg>
+      </button>
+      <button type="button" class="btn-icon" id="clearBtn" title="Pulisci foglio">
+        <svg viewBox="0 0 24 24" width="20" height="20">
+          <path d="M9 3 L19 13 L13 19 L3 9 Z" fill="#f0c9d0" stroke="#1c1c1c" stroke-width="1.8" stroke-linejoin="round"/>
+          <path d="M6 15 L11 20 L13 19 L8 14 Z" fill="#d98ea0" stroke="#1c1c1c" stroke-width="1.5" stroke-linejoin="round"/>
+          <line x1="3" y1="21" x2="17" y2="21" stroke="#1c1c1c" stroke-width="1.8" stroke-linecap="round"/>
+        </svg>
+      </button>
+      <button type="button" class="btn-icon" id="saveAsBtn" title="Salva con nome">
+        <svg viewBox="0 0 24 24" width="20" height="20">
+          <path d="M4 3 H14 L17 6 V21 H4 Z" fill="#dfe3e6" stroke="#1c1c1c" stroke-width="1.6" stroke-linejoin="round"/>
+          <rect x="6.5" y="3" width="6.5" height="5" fill="#fff" stroke="#1c1c1c" stroke-width="1.3"/>
+          <rect x="6.5" y="12.5" width="8" height="6.5" fill="#fff" stroke="#1c1c1c" stroke-width="1.3"/>
+          <circle cx="18.5" cy="18.5" r="4.6" fill="#fff" stroke="#1c1c1c" stroke-width="1.4"/>
+          <circle cx="16.7" cy="18.5" r="0.75" fill="#1c1c1c"/>
+          <circle cx="18.5" cy="18.5" r="0.75" fill="#1c1c1c"/>
+          <circle cx="20.3" cy="18.5" r="0.75" fill="#1c1c1c"/>
+        </svg>
+      </button>
+      <button type="button" class="btn-icon" id="saveBtn" title="Salva sessione">
+        <svg viewBox="0 0 24 24" width="20" height="20">
+          <path d="M4 3 H17 L20 6 V21 H4 Z" fill="#dfe3e6" stroke="#1c1c1c" stroke-width="1.8" stroke-linejoin="round"/>
+          <rect x="7" y="3" width="8" height="6" fill="#fff" stroke="#1c1c1c" stroke-width="1.5"/>
+          <rect x="7" y="13" width="10" height="8" fill="#fff" stroke="#1c1c1c" stroke-width="1.5"/>
+          <rect x="9" y="4.5" width="4" height="2.5" fill="#8a8a8a"/>
+        </svg>
+      </button>
+      <button type="button" class="btn-icon" id="loadBtn" title="Carica sessione">
+        <svg viewBox="0 0 24 24" width="20" height="20">
+          <path d="M3 8 L3 19 H21 V9 H12 L10 6 H3 Z" fill="#f4cd7a" stroke="#1c1c1c" stroke-width="1.8" stroke-linejoin="round"/>
+        </svg>
+      </button>
+      <button type="button" class="btn-icon" id="pdfBtn" title="Scarica PDF">
+        <svg viewBox="0 0 24 24" width="20" height="20">
+          <line x1="12" y1="3" x2="12" y2="15" stroke="#1c1c1c" stroke-width="2.2" stroke-linecap="round"/>
+          <path d="M7 10 L12 15.5 L17 10" fill="none" stroke="#1c1c1c" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+          <line x1="4" y1="21" x2="20" y2="21" stroke="#1c1c1c" stroke-width="2.2" stroke-linecap="round"/>
+        </svg>
+      </button>
+      <button type="button" class="btn-icon" id="fullscreenBtn" title="Schermo intero">
+        <svg viewBox="0 0 24 24" width="20" height="20">
+          <path d="M4 9 L4 4 L9 4" fill="none" stroke="#1c1c1c" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M15 4 L20 4 L20 9" fill="none" stroke="#1c1c1c" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M20 15 L20 20 L15 20" fill="none" stroke="#1c1c1c" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M9 20 L4 20 L4 15" fill="none" stroke="#1c1c1c" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+      <button type="button" class="btn-icon" id="notationBtn" title="Converti in notazione musicale">
+        <svg viewBox="0 0 24 24" width="27" height="27">
+          <line x1="4" y1="7" x2="20" y2="7" stroke="#1c1c1c" stroke-width="1.1"/>
+          <line x1="4" y1="10.3" x2="20" y2="10.3" stroke="#1c1c1c" stroke-width="1.1"/>
+          <line x1="4" y1="13.6" x2="20" y2="13.6" stroke="#1c1c1c" stroke-width="1.1"/>
+          <ellipse cx="9" cy="16.5" rx="2.1" ry="1.6" fill="#1c1c1c" transform="rotate(-18 9 16.5)"/>
+          <line x1="10.9" y1="16.5" x2="10.9" y2="5.5" stroke="#1c1c1c" stroke-width="1.1"/>
+          <ellipse cx="16" cy="13.6" rx="2.1" ry="1.6" fill="#1c1c1c" transform="rotate(-18 16 13.6)"/>
+          <line x1="17.9" y1="13.6" x2="17.9" y2="4" stroke="#1c1c1c" stroke-width="1.1"/>
+        </svg>
+      </button>
+      <input type="file" id="loadInput" accept="application/json" style="display:none;">
+      </div>
+      <div class="toolbar-row">
+      <label class="lock-toggle">
+        <input type="checkbox" id="polyToggle">
+        Consenti polifonia
+      </label>
+      <span class="row-spacer"></span>
+      <button type="button" class="btn-icon" id="rewindBtn" title="Riavvolgi">
+        <svg viewBox="0 0 24 24" width="20" height="20"><rect x="4" y="4" width="3" height="16" fill="#1c1c1c"/><path d="M20 4 L20 20 L8 12 Z" fill="#1c1c1c"/></svg>
+      </button>
+      <button type="button" class="btn-icon" id="playBtn" title="Esegui">
+        <svg viewBox="0 0 24 24" width="20" height="20"><path d="M7 4 L20 12 L7 20 Z" fill="#1c1c1c"/></svg>
+      </button>
+      <button type="button" class="btn-icon" id="stopBtn" title="Interrompi">
+        <svg viewBox="0 0 24 24" width="20" height="20"><rect x="5" y="5" width="14" height="14" rx="2" fill="#1c1c1c"/></svg>
+      </button>
+      <span class="volume-control" title="Volume dell'esecuzione">
+        <svg viewBox="0 0 24 24" width="19" height="19">
+          <path d="M4 9 L8 9 L13 5 L13 19 L8 15 L4 15 Z" fill="#1c1c1c"/>
+          <path d="M16.5 8.5 C 19 10.5, 19 13.5, 16.5 15.5" fill="none" stroke="#1c1c1c" stroke-width="1.6" stroke-linecap="round"/>
+        </svg>
+        <input type="range" id="volumeSlider" min="0" max="100" value="80" aria-label="Volume">
+      </span>
+      </div>
+      <div class="toolbar-row verifica-separator-row">
+        <div class="verifica-separator"></div>
+      </div>
+      <div class="toolbar-row">
+        <div class="verifica-title">SEZIONE VERIFICA</div>
+      </div>
+      <div class="toolbar-row" id="verificaRow"></div>
+    </div>
+  </div>
+</section>
+
+<div class="titlebar-section">
+  <label class="titlebar-field">
+    <span>Titolo</span>
+    <input type="text" id="docTitleInput" placeholder="(facoltativo)">
+  </label>
+  <label class="titlebar-field">
+    <span>Cognome e Nome</span>
+    <input type="text" id="docAuthorInput" placeholder="(facoltativo)">
+  </label>
+</div>
+
+<div id="printHeaderTitle" class="print-header-title"></div>
+<div id="printHeaderAuthor" class="print-header-author"></div>
+
+<div class="worksheet-section">
+
+<div class="worksheet-wrap" id="worksheetWrap">
+  <div id="printScaleBox">
+    <div id="worksheet"></div>
+  </div>
+</div>
+</div>
+
+<div id="errorToast" class="error-toast" style="display:none;"></div>
+
+<div id="notationPrintContainer" class="notation-print-only"></div>
+
+<div class="modal-overlay" id="notationModal" style="display:none;">
+  <div class="modal-box" id="notationModalBox">
+    <div class="modal-header">
+      <span>Notazione musicale</span>
+      <div class="modal-header-btns">
+        <button type="button" id="notationPdfBtn" class="modal-close-btn" title="Scarica PDF" aria-label="Scarica PDF">
+          <svg viewBox="0 0 24 24" width="18" height="18">
+            <line x1="12" y1="3" x2="12" y2="15" stroke="#1c1c1c" stroke-width="2.2" stroke-linecap="round"/>
+            <path d="M7 10 L12 15.5 L17 10" fill="none" stroke="#1c1c1c" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+            <line x1="4" y1="21" x2="20" y2="21" stroke="#1c1c1c" stroke-width="2.2" stroke-linecap="round"/>
+          </svg>
+        </button>
+        <button type="button" id="notationFullscreenBtn" class="modal-close-btn" title="Schermo intero" aria-label="Schermo intero">
+          <svg viewBox="0 0 24 24" width="18" height="18">
+            <path d="M4 9 L4 4 L9 4" fill="none" stroke="#1c1c1c" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M15 4 L20 4 L20 9" fill="none" stroke="#1c1c1c" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M20 15 L20 20 L15 20" fill="none" stroke="#1c1c1c" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M9 20 L4 20 L4 15" fill="none" stroke="#1c1c1c" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+        <button type="button" id="notationCloseBtn" class="modal-close-btn" title="Chiudi" aria-label="Chiudi">&times;</button>
+      </div>
+    </div>
+    <div class="modal-body" id="notationBody"></div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ================= constants ================= */
+  var REF_CELL_PX = 44;   /* unit cell size used by the reference table AND the toolbar rods */
+  var MIN_ROD_PX  = 28;   /* minimum visible width for very short toolbar rods (eighth) */
+  var SQUARE_PX   = 56;   /* worksheet square size (one quarter-note unit) -- recomputed so 8 measures always fill the line width */
+  var MIN_SQUARE_PX = 26; /* safety floor so the grid never becomes unusably tiny on very narrow screens */
+  var LABEL_COL_WIDTH = 50; /* must match .label-cell width in CSS */
+  var KEYBOARD_COL_WIDTH = 58; /* must match .key-cell width in CSS */
+  var BLACK_KEY_AFTER_ROW = [false, true, true, true, false, true, true]; /* between DO'|SI, SI|LA, LA|SOL, SOL|FA, FA|MI, MI|RE, RE|DO */
+  var ROW_H_PX    = 52;   /* worksheet lane height -- also the height of every toolbar rod (suoni AND pause) */
+  var UNIT_PX     = SQUARE_PX/2; /* one eighth-note unit on the worksheet */
+  var LANES = ["DO'",'SI','LA','SOL','FA','MI','RE','DO']; /* top to bottom, fixed -- DO' is the high octave */
+  var MEASURES_PER_LINE = 8; /* always 8 columns per line, regardless of meter */
+  var DEFAULT_MEASURES = 8;
+
+  var meter = 4;  /* beats per measure: 4, 3 or 2 -- drives the square-count per measure */
+  var bpm = 60;
+  var polyphonyBlocked = true; /* when true (default), a new rod cannot be placed if it would overlap another lane at the same time; the "Consenti polifonia" checkbox flips this off when checked */
+
+  function capacityPerMeasure(){ return meter*2; }
+
+  /* ================= icon builders (plain SVG, ASCII only) ================= */
+  function svgWholeNote(){
+    return '<svg viewBox="0 0 40 40"><ellipse cx="20" cy="22" rx="11" ry="8" fill="none" stroke="#161616" stroke-width="3" transform="rotate(-15 20 22)"/></svg>';
+  }
+  function svgHalfNote(){
+    return '<svg viewBox="0 0 40 56"><ellipse cx="14" cy="42" rx="9" ry="6.5" fill="none" stroke="#161616" stroke-width="2.6" transform="rotate(-15 14 42)"/><line x1="22.4" y1="39" x2="22.4" y2="6" stroke="#161616" stroke-width="2.6"/></svg>';
+  }
+  function svgQuarterNote(){
+    return '<svg viewBox="0 0 40 56"><ellipse cx="14" cy="42" rx="9" ry="6.5" fill="#161616" transform="rotate(-15 14 42)"/><line x1="22.4" y1="39" x2="22.4" y2="6" stroke="#161616" stroke-width="2.6"/></svg>';
+  }
+  function svgEighthNote(){
+    return '<svg viewBox="0 0 40 56"><ellipse cx="14" cy="42" rx="9" ry="6.5" fill="#161616" transform="rotate(-15 14 42)"/><line x1="22.4" y1="39" x2="22.4" y2="6" stroke="#161616" stroke-width="2.6"/><path d="M22.4 6 C 30 10, 32 17, 26 23" fill="none" stroke="#161616" stroke-width="2.6" stroke-linecap="round"/></svg>';
+  }
+  function svgWholeRest(){
+    return '<svg viewBox="0 0 40 30"><line x1="4" y1="12" x2="36" y2="12" stroke="#b7b7b7" stroke-width="1.5"/><rect x="11" y="12" width="18" height="6" fill="#161616"/></svg>';
+  }
+  function svgHalfRest(){
+    return '<svg viewBox="0 0 40 30"><line x1="4" y1="20" x2="36" y2="20" stroke="#b7b7b7" stroke-width="1.5"/><rect x="11" y="14" width="18" height="6" fill="#161616"/></svg>';
+  }
+  function svgQuarterRest(){
+    return '<svg viewBox="0 0 13 40"><path d="M 1.8 0.0 L 1.5 0.3 L 1.5 1.2 L 5.9 7.1 L 5.9 8.1 L 0.3 16.5 L 0.2 18.0 L 6.2 25.5 L 3.7 25.7 L 2.2 26.4 L 1.2 27.4 L 0.3 28.9 L 0.0 31.1 L 1.2 33.6 L 5.5 39.3 L 6.6 40.0 L 6.9 39.8 L 7.1 39.0 L 4.9 35.1 L 4.5 33.8 L 5.2 31.6 L 6.7 30.4 L 8.2 30.3 L 9.6 30.8 L 11.8 32.3 L 12.4 32.3 L 12.8 31.8 L 12.4 30.9 L 5.7 22.7 L 5.9 21.8 L 11.4 13.6 L 11.4 12.4 L 2.9 0.7 Z" fill="#161616"/></svg>';
+  }
+  function svgEighthRest(){
+    return '<svg viewBox="0 0 24 40"><path d="M 23.2 0.0 L 21.8 0.5 L 18.9 5.0 L 15.8 8.4 L 13.8 9.8 L 10.9 10.9 L 12.2 8.4 L 12.2 5.4 L 11.2 3.1 L 9.1 1.3 L 6.6 0.5 L 3.8 1.0 L 1.4 2.7 L 0.2 5.0 L 0.0 7.8 L 1.3 10.7 L 3.2 12.2 L 6.5 13.4 L 10.2 13.5 L 13.7 12.6 L 16.4 11.0 L 19.3 8.3 L 9.4 39.2 L 11.6 40.0 L 23.9 1.6 L 23.9 0.7 Z" fill="#161616"/></svg>';
+  }
+
+  /* ================= pie chart, always divided into 4 quarters ================= */
+  function polarPoint(cx, cy, r, deg){
+    var rad = deg*Math.PI/180;
+    return {x: cx + r*Math.sin(rad), y: cy - r*Math.cos(rad)};
+  }
+  function pieSlicePath(cx, cy, r, startDeg, endDeg){
+    var p1 = polarPoint(cx,cy,r,startDeg);
+    var p2 = polarPoint(cx,cy,r,endDeg);
+    var largeArc = (endDeg-startDeg) > 180 ? 1 : 0;
+    return 'M '+cx+' '+cy+' L '+p1.x.toFixed(2)+' '+p1.y.toFixed(2)+' A '+r+' '+r+' 0 '+largeArc+' 1 '+p2.x.toFixed(2)+' '+p2.y.toFixed(2)+' Z';
+  }
+  function buildPieSVG(frac){
+    var size=52, r=23, c=size/2;
+    var fillHtml = '';
+    if(frac >= 0.999){
+      fillHtml = '<circle cx="'+c+'" cy="'+c+'" r="'+r+'" fill="#8a5a34"/>';
+    } else if(frac > 0){
+      fillHtml = '<path d="'+pieSlicePath(c,c,r,0,360*frac)+'" fill="#8a5a34"/>';
+    }
+    return '<svg viewBox="0 0 '+size+' '+size+'" width="52" height="52">' +
+      '<circle cx="'+c+'" cy="'+c+'" r="'+r+'" fill="#ffffff"/>' +
+      fillHtml +
+      '<line x1="'+c+'" y1="'+(c-r)+'" x2="'+c+'" y2="'+(c+r)+'" stroke="#1c1c1c" stroke-width="1.2"/>' +
+      '<line x1="'+(c-r)+'" y1="'+c+'" x2="'+(c+r)+'" y2="'+c+'" stroke="#1c1c1c" stroke-width="1.2"/>' +
+      '<circle cx="'+c+'" cy="'+c+'" r="'+r+'" fill="none" stroke="#1c1c1c" stroke-width="2"/>' +
+      '</svg>';
+  }
+
+  /* ================= data ================= */
+  var NOTE_VALUES = [
+    {id:'whole',   name:'Semibreve',  frac:'4/4', squares:4,   units:8, color:'var(--c-whole)',   colorT:'rgba(99,147,242,0.55)',  pie:1,     icon:svgWholeNote()},
+    {id:'half',    name:'Minima',     frac:'2/4', squares:2,   units:4, color:'var(--c-half)',    colorT:'rgba(232,118,107,0.55)', pie:0.5,   icon:svgHalfNote()},
+    {id:'quarter', name:'Semiminima', frac:'1/4', squares:1,   units:2, color:'var(--c-quarter)', colorT:'rgba(98,168,110,0.55)',  pie:0.25,  icon:svgQuarterNote()},
+    {id:'eighth',  name:'Croma',      frac:'1/8', squares:0.5, units:1, color:'var(--c-eighth)',  colorT:'rgba(244,215,119,0.55)', pie:0.125, icon:svgEighthNote()}
+  ];
+  var REST_VALUES = [
+    {id:'whole-rest',   name:'Pausa di semibreve',  units:8, icon:svgWholeRest()},
+    {id:'half-rest',    name:'Pausa di minima',     units:4, icon:svgHalfRest()},
+    {id:'quarter-rest', name:'Pausa di semiminima', units:2, icon:svgQuarterRest()},
+    {id:'eighth-rest',  name:'Pausa di croma',      units:1, icon:svgEighthRest()}
+  ];
+
+  var RODS_BY_ID = {};
+  NOTE_VALUES.forEach(function(v){ RODS_BY_ID[v.id] = {id:v.id, kind:'sound', units:v.units, squares:v.squares, color:v.color, colorT:v.colorT, icon:v.icon, name:v.name}; });
+  REST_VALUES.forEach(function(r){ RODS_BY_ID[r.id] = {id:r.id, kind:'pause', units:r.units, color:null, colorT:null, icon:r.icon, name:r.name}; });
+
+  function refWidthPx(squares){
+    return Math.max(MIN_ROD_PX, squares*REF_CELL_PX);
+  }
+
+  /* ================= build: values reference table ================= */
+  function buildBarHTML(squares){
+    var totalWidth = 4*REF_CELL_PX;
+    var wholeCells = Math.floor(squares);
+    var fracPart = squares - wholeCells;
+    var html = '<div class="value-bar-row" style="width:'+totalWidth+'px;">';
+    var i;
+    for(i=0;i<4;i++){
+      if(i < wholeCells){
+        html += '<div class="bar-cell" style="width:'+REF_CELL_PX+'px;background:var(--ref-brown);"></div>';
+      } else if(i === wholeCells && fracPart > 0.001){
+        html += '<div class="bar-cell" style="width:'+REF_CELL_PX+'px;background:#fff;">' +
+                  '<span style="position:absolute; top:0; bottom:0; left:0; width:'+(fracPart*100)+'%; background:var(--ref-brown); display:block;"></span>' +
+                '</div>';
+      } else {
+        html += '<div class="bar-cell" style="width:'+REF_CELL_PX+'px;background:#fff;"></div>';
+      }
+    }
+    html += '</div>';
+    return html;
+  }
+  function buildValuesTable(){
+    var wrap = document.getElementById('valuesRows');
+    NOTE_VALUES.forEach(function(v, idx){
+      var rest = REST_VALUES[idx];
+      var row = document.createElement('div');
+      row.className = 'value-row';
+      var restCellClass = (rest.id === 'eighth-rest') ? 'value-icon small-icon' : 'value-icon';
+      row.innerHTML =
+        '<div class="value-icon">'+v.icon+'</div>' +
+        '<div class="'+restCellClass+'">'+rest.icon+'</div>' +
+        buildBarHTML(v.squares) +
+        '<div class="value-frac">'+v.frac+'</div>' +
+        '<div class="value-pie">'+buildPieSVG(v.pie)+'</div>';
+      row.title = v.name+' / '+rest.name;
+      wrap.appendChild(row);
+    });
+  }
+
+  /* ================= build: sounds panel ================= */
+  function buildSoundsPanel(){
+    var wrap = document.getElementById('soundsRow');
+    NOTE_VALUES.forEach(function(v){
+      var el = document.createElement('div');
+      el.className = 'rod sound-rod';
+      el.style.width = refWidthPx(v.squares)+'px';
+      el.style.height = ROW_H_PX+'px';
+      el.style.background = v.color;
+      el.dataset.id = v.id;
+      el.title = v.name+' ('+v.frac+')';
+      el.innerHTML = '<span class="rod-icon">'+v.icon+'</span>';
+      if(v.squares < 1){
+        el.style.justifyContent = 'center';
+        el.querySelector('.rod-icon').style.width = 'auto';
+      } else {
+        el.querySelector('.rod-icon').style.width = REF_CELL_PX+'px';
+      }
+      attachDrag(el);
+      wrap.appendChild(el);
+    });
+  }
+
+  /* ================= build: pauses panel ================= */
+  function buildPausesPanel(){
+    var wrap = document.getElementById('pausesRow');
+    REST_VALUES.forEach(function(r){
+      var el = document.createElement('div');
+      el.className = 'rod pause-rod';
+      el.style.width = refWidthPx(r.units/2)+'px';
+      el.style.height = ROW_H_PX+'px';
+      el.dataset.id = r.id;
+      el.title = r.name;
+      el.innerHTML = '<span class="rod-icon">'+r.icon+'</span>';
+      var iconEl = el.querySelector('.rod-icon');
+      if(r.id === 'whole-rest' || r.id === 'half-rest'){
+        iconEl.querySelector('svg').style.height = '23px';
+      }
+      if(r.id === 'eighth-rest'){
+        iconEl.querySelector('svg').style.height = '24px';
+      }
+      if(r.id === 'half-rest'){
+        el.style.justifyContent = 'flex-start';
+        iconEl.style.width = REF_CELL_PX+'px';
+        iconEl.style.height = '100%';
+        iconEl.style.flexShrink = '0';
+      }
+      attachDrag(el);
+      wrap.appendChild(el);
+    });
+  }
+
+  /* ================= worksheet: lines of up to 8 measures, fixed pitch lanes =====
+     Occupancy and placed items now live at the LINE level (one continuous timeline
+     per lane spanning every measure in that line). This lets a sound rod span across
+     a measure boundary when the lock is off, while measures keep their own visual
+     grid squares as before. ============================================= */
+  var lines = [];
+  var itemCounter = 0;
+
+  function buildLabelColumnInto(container){
+    container.innerHTML = '';
+    LANES.forEach(function(name){
+      var cell = document.createElement('div');
+      cell.className = 'label-cell';
+      cell.style.height = ROW_H_PX+'px';
+      cell.textContent = name;
+      container.appendChild(cell);
+    });
+  }
+
+  function buildKeyboardColumnInto(container){
+    container.innerHTML = '';
+    LANES.forEach(function(){
+      var cell = document.createElement('div');
+      cell.className = 'key-cell';
+      cell.style.height = ROW_H_PX+'px';
+      container.appendChild(cell);
+    });
+    var i;
+    for(i=0;i<LANES.length-1;i++){
+      if(BLACK_KEY_AFTER_ROW[i]){
+        var bk = document.createElement('div');
+        bk.className = 'black-key';
+        bk.style.top = ((i+1)*ROW_H_PX - 10)+'px';
+        container.appendChild(bk);
+      }
+    }
+  }
+
+  function addLine(){
+    var lineEl = document.createElement('div');
+    lineEl.className = 'worksheet-line';
+
+    var numbersRow = document.createElement('div');
+    numbersRow.className = 'measure-numbers-row';
+    var gutter = document.createElement('div');
+    gutter.className = 'number-gutter';
+    gutter.style.width = (KEYBOARD_COL_WIDTH+LABEL_COL_WIDTH)+'px';
+    numbersRow.appendChild(gutter);
+
+    var lineBody = document.createElement('div');
+    lineBody.className = 'line-body';
+
+    var keyboardCol = document.createElement('div');
+    keyboardCol.className = 'keyboard-col';
+    buildKeyboardColumnInto(keyboardCol);
+
+    var labelCol = document.createElement('div');
+    labelCol.className = 'label-col';
+    buildLabelColumnInto(labelCol);
+
+    var track = document.createElement('div');
+    track.className = 'measures-track';
+
+    var itemsLayer = document.createElement('div');
+    itemsLayer.className = 'row-items';
+    track.appendChild(itemsLayer);
+
+    lineBody.appendChild(keyboardCol);
+    lineBody.appendChild(labelCol);
+    lineBody.appendChild(track);
+
+    lineEl.appendChild(numbersRow);
+    lineEl.appendChild(lineBody);
+    document.getElementById('worksheet').appendChild(lineEl);
+
+    var laneOcc = LANES.map(function(){ return []; });
+
+    var lineObj = {el:lineEl, track:track, itemsLayer:itemsLayer, numbersRow:numbersRow, measures:[], laneOcc:laneOcc, items:[]};
+    lines.push(lineObj);
+    return lineObj;
+  }
+
+  function addMeasureToLine(lineObj){
+    var cap = capacityPerMeasure();
+    var measureEl = document.createElement('div');
+    measureEl.className = 'measure';
+    measureEl.style.width = (meter*SQUARE_PX)+'px';
+    measureEl.style.height = (LANES.length*ROW_H_PX)+'px';
+
+    var lanesWrap = document.createElement('div');
+    lanesWrap.className = 'lanes';
+    var L, s;
+    for(L=0; L<LANES.length; L++){
+      var lane = document.createElement('div');
+      lane.className = 'lane';
+      lane.style.height = ROW_H_PX+'px';
+      for(s=0;s<meter;s++){
+        var sq = document.createElement('div');
+        sq.className = 'row-square';
+        sq.style.width = SQUARE_PX+'px';
+        lane.appendChild(sq);
+      }
+      lanesWrap.appendChild(lane);
+    }
+    measureEl.appendChild(lanesWrap);
+    // insert before the line-level items layer so items always render on top
+    lineObj.track.insertBefore(measureEl, lineObj.itemsLayer);
+
+    var numCell = document.createElement('div');
+    numCell.className = 'measure-number-cell';
+    numCell.style.width = (meter*SQUARE_PX)+'px';
+    lineObj.numbersRow.appendChild(numCell);
+
+    for(L=0; L<LANES.length; L++){
+      var i;
+      for(i=0;i<cap;i++){ lineObj.laneOcc[L].push(null); }
+    }
+
+    var measureObj = {el:measureEl};
+    lineObj.measures.push(measureObj);
+    return measureObj;
+  }
+
+  function toggleFullscreen(){
+    if(!document.fullscreenElement){
+      if(document.documentElement.requestFullscreen){
+        document.documentElement.requestFullscreen().catch(function(){});
+      }
+    } else {
+      if(document.exitFullscreen){ document.exitFullscreen(); }
+    }
+  }
+
+  function fullscreenIconSvg(size, entering){
+    var arms = entering ?
+      ['M4 9 L4 4 L9 4','M15 4 L20 4 L20 9','M20 15 L20 20 L15 20','M9 20 L4 20 L4 15'] :
+      ['M9 4 L9 9 L4 9','M20 9 L15 9 L15 4','M15 20 L15 15 L20 15','M4 15 L9 15 L9 20'];
+    var paths = arms.map(function(d){
+      return '<path d="'+d+'" fill="none" stroke="#1c1c1c" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>';
+    }).join('');
+    return '<svg viewBox="0 0 24 24" width="'+size+'" height="'+size+'">'+paths+'</svg>';
+  }
+
+  function updateFullscreenIcons(){
+    var isFs = !!document.fullscreenElement;
+    var mainBtn = document.getElementById('fullscreenBtn');
+    var notationBtn = document.getElementById('notationFullscreenBtn');
+    if(mainBtn){
+      mainBtn.innerHTML = fullscreenIconSvg(20, !isFs);
+      mainBtn.title = isFs ? 'Riduci schermo' : 'Schermo intero';
+    }
+    if(notationBtn){
+      notationBtn.innerHTML = fullscreenIconSvg(18, !isFs);
+      notationBtn.title = isFs ? 'Riduci schermo' : 'Schermo intero';
+    }
+  }
+  document.addEventListener('fullscreenchange', updateFullscreenIcons);
+
+  function renumberMeasures(){
+    var num = 1;
+    lines.forEach(function(line){
+      var cells = line.numbersRow.querySelectorAll('.measure-number-cell');
+      cells.forEach(function(cell){
+        cell.textContent = num;
+        num++;
+      });
+    });
+  }
+
+  function addMeasure(){
+    var lastLine = lines[lines.length-1];
+    if(!lastLine || lastLine.measures.length >= MEASURES_PER_LINE){
+      lastLine = addLine();
+    }
+    var m = addMeasureToLine(lastLine);
+    renumberMeasures();
+    return m;
+  }
+
+  function removeMeasure(){
+    var total = 0;
+    lines.forEach(function(l){ total += l.measures.length; });
+    if(total<=1){ return; }
+    var lastLine = lines[lines.length-1];
+    var cap = capacityPerMeasure();
+    var cutoff = (lastLine.measures.length-1)*cap;
+    var affected = lastLine.items.filter(function(it){ return it.slot+it.units > cutoff; });
+    if(affected.length>0){
+      if(!window.confirm('In quella misura ci sono regoli inseriti che verranno rimossi. Continuare?')){ return; }
+      affected.forEach(function(it){
+        releaseOccupancy(lastLine, it);
+        removeItemRecord(lastLine, it.id);
+        if(it.el){ it.el.remove(); }
+      });
+    }
+    var m = lastLine.measures.pop();
+    m.el.remove();
+    lastLine.laneOcc.forEach(function(arr){ arr.length = cutoff; });
+    var numberCells = lastLine.numbersRow.querySelectorAll('.measure-number-cell');
+    if(numberCells.length > 0){ numberCells[numberCells.length-1].remove(); }
+    if(lastLine.measures.length===0 && lines.length>1){
+      lastLine.el.remove();
+      lines.pop();
+    }
+    renumberMeasures();
+  }
+
+  function computeSquarePx(){
+    var wrap = document.querySelector('.worksheet-wrap');
+    if(!wrap){ return SQUARE_PX; }
+    var existingLabelCol = document.querySelector('.label-col');
+    var existingKeyboardCol = document.querySelector('.keyboard-col');
+    var labelW = existingLabelCol ? existingLabelCol.getBoundingClientRect().width : LABEL_COL_WIDTH;
+    var keyboardW = existingKeyboardCol ? existingKeyboardCol.getBoundingClientRect().width : KEYBOARD_COL_WIDTH;
+    var available = wrap.clientWidth - labelW - keyboardW;
+    var raw = Math.floor(available/(MEASURES_PER_LINE*meter));
+    return Math.max(MIN_SQUARE_PX, raw);
+  }
+
+  function buildWorksheet(totalMeasures){
+    if(typeof stopPlayback === 'function'){ stopPlayback(); }
+    if(typeof hidePlayhead === 'function'){ hidePlayhead(); }
+    SQUARE_PX = computeSquarePx();
+    UNIT_PX = SQUARE_PX/2;
+    document.getElementById('worksheet').innerHTML = '';
+    lines = [];
+    var i;
+    for(i=0;i<totalMeasures;i++){ addMeasure(); }
+  }
+
+  function allMeasuresFlat(){
+    var out = [];
+    lines.forEach(function(l){ out = out.concat(l.measures); });
+    return out;
+  }
+
+  function findLineAt(clientX, clientY){
+    var li;
+    for(li=0; li<lines.length; li++){
+      var trackRect = lines[li].track.getBoundingClientRect();
+      if(clientY >= trackRect.top-15 && clientY <= trackRect.bottom+15){ return lines[li]; }
+    }
+    return null;
+  }
+
+  function laneIndexFromY(line, clientY){
+    var rect = line.track.getBoundingClientRect();
+    var relY = clientY - rect.top;
+    var idx = Math.floor(relY/ROW_H_PX);
+    return Math.max(0, Math.min(LANES.length-1, idx));
+  }
+
+  function lineTotalCapacity(line){
+    return line.measures.length*capacityPerMeasure();
+  }
+
+  function findBestSlotForSpanInLine(line, desiredLane, rawSlot, units, span, ignoreId, constrainToMeasure){
+    var lane = Math.max(0, Math.min(LANES.length-span, desiredLane));
+    var cap = capacityPerMeasure();
+    var totalCap = lineTotalCapacity(line);
+    var sMin = 0, sMax = totalCap-units;
+    if(constrainToMeasure){
+      var center = rawSlot + units/2;
+      var measIdx = Math.max(0, Math.min(line.measures.length-1, Math.floor(center/cap)));
+      sMin = measIdx*cap;
+      sMax = Math.min(totalCap, sMin+cap) - units;
+      if(sMax < sMin){ return null; }
+    }
+    if(sMax < sMin){ return null; }
+    var checkLaneStart = polyphonyBlocked ? 0 : lane;
+    var checkLaneEnd = polyphonyBlocked ? LANES.length : lane+span;
+    var candidates = [];
+    var s;
+    for(s=sMin; s<=sMax; s++){
+      var free = true, L, i;
+      for(L=checkLaneStart; L<checkLaneEnd && free; L++){
+        var arr = line.laneOcc[L];
+        for(i=s;i<s+units;i++){ if(arr[i] && arr[i]!==ignoreId){ free=false; break; } }
+      }
+      if(free){ candidates.push(s); }
+    }
+    if(candidates.length===0){ return null; }
+    candidates.sort(function(a,b){ return Math.abs(a-rawSlot)-Math.abs(b-rawSlot); });
+    return {slot:candidates[0], lane:lane};
+  }
+
+  function canPlace(line, lane, slot, units, span){
+    if(lane<0 || lane+span>LANES.length){ return false; }
+    var totalCap = lineTotalCapacity(line);
+    if(slot<0 || slot+units>totalCap){ return false; }
+    var L,i;
+    for(L=lane;L<lane+span;L++){
+      for(i=slot;i<slot+units;i++){ if(line.laneOcc[L][i]){ return false; } }
+    }
+    return true;
+  }
+
+  function reserveOccupancy(line, record){
+    var L,i;
+    for(L=record.lane; L<record.lane+record.span; L++){
+      for(i=record.slot; i<record.slot+record.units; i++){ line.laneOcc[L][i]=record.id; }
+    }
+  }
+  function releaseOccupancy(line, record){
+    var L,i;
+    for(L=record.lane; L<record.lane+record.span; L++){
+      for(i=record.slot; i<record.slot+record.units; i++){ if(line.laneOcc[L][i]===record.id){ line.laneOcc[L][i]=null; } }
+    }
+  }
+
+  function removeItemRecord(line, id){
+    var i;
+    for(i=0;i<line.items.length;i++){
+      if(line.items[i].id===id){ line.items.splice(i,1); return; }
+    }
+  }
+
+  function hasAnyContent(){
+    return lines.some(function(l){ return l.items.length>0; });
+  }
+
+  function placeItem(line, slot, info, lane, span){
+    span = span || 1;
+    var id = 'it'+(itemCounter++);
+    var el = document.createElement('div');
+    el.className = 'placed-rod ' + (info.kind==='pause' ? 'placed-pause' : 'placed-sound');
+    el.style.left = (slot*UNIT_PX)+'px';
+    el.style.width = (info.units*UNIT_PX)+'px';
+    el.style.top = (lane*ROW_H_PX)+'px';
+    el.style.height = (span*ROW_H_PX)+'px';
+    if(info.kind==='sound'){ el.style.background = info.colorT; }
+
+    var html = '<span class="rod-icon">'+info.icon+'</span><button type="button" class="delete-btn" aria-label="Rimuovi">&times;</button>';
+    if(info.kind==='pause' && !polyphonyBlocked){
+      html += '<button type="button" class="pause-expand-btn" title="Estendi o riduci a tutta la colonna">' +
+        '<svg viewBox="0 0 16 16" width="12" height="12"><path d="M8 1 L11 4.2 L5 4.2 Z" fill="#1c1c1c"/><path d="M8 15 L11 11.8 L5 11.8 Z" fill="#1c1c1c"/><line x1="8" y1="4.2" x2="8" y2="11.8" stroke="#1c1c1c" stroke-width="1.6"/></svg>' +
+        '</button>';
+    }
+    el.innerHTML = html;
+    el.title = info.name;
+
+    if(info.kind==='sound'){
+      if(info.squares < 1){
+        el.style.justifyContent = 'center';
+        el.querySelector('.rod-icon').style.width = 'auto';
+      } else {
+        el.querySelector('.rod-icon').style.width = SQUARE_PX+'px';
+      }
+    } else if(info.kind==='pause'){
+      if(info.id === 'whole-rest' || info.id === 'half-rest'){
+        el.querySelector('.rod-icon svg').style.height = '23px';
+      }
+      if(info.id === 'half-rest'){
+        el.style.justifyContent = 'flex-start';
+        var pIconEl = el.querySelector('.rod-icon');
+        pIconEl.style.width = SQUARE_PX+'px';
+        pIconEl.style.height = '100%';
+        pIconEl.style.flexShrink = '0';
+      }
+    }
+
+    var record = {id:id, refId:info.id, slot:slot, units:info.units, kind:info.kind, lane:lane, span:span, el:el};
+
+    var deleteBtn = el.querySelector('.delete-btn');
+    deleteBtn.addEventListener('pointerdown', function(e){ e.stopPropagation(); });
+    deleteBtn.addEventListener('click', function(e){
+      e.stopPropagation();
+      pushUndo();
+      releaseOccupancy(line, record);
+      removeItemRecord(line, id);
+      el.remove();
+    });
+
+    el.addEventListener('contextmenu', function(e){
+      e.preventDefault();
+      e.stopPropagation();
+      pushUndo();
+      releaseOccupancy(line, record);
+      removeItemRecord(line, id);
+      el.remove();
+    });
+
+    if(info.kind==='pause'){
+      var expandBtn = el.querySelector('.pause-expand-btn');
+      if(expandBtn){
+        expandBtn.addEventListener('pointerdown', function(e){ e.stopPropagation(); });
+        expandBtn.addEventListener('click', function(e){
+          e.stopPropagation();
+          togglePauseSpan(line, record, el);
+        });
+      }
+    }
+
+    el.addEventListener('pointerdown', function(e){
+      if(e.button === 2){ return; } /* right button: let "contextmenu" below handle deletion */
+      e.preventDefault();
+      startDrag(e, info, {line:line, record:record, el:el});
+    });
+
+    line.itemsLayer.appendChild(el);
+    reserveOccupancy(line, record);
+    line.items.push(record);
+    return id;
+  }
+
+  /* ================= resize (pause vertical span) ================= */
+  function togglePauseSpan(line, record, el){
+    var fullSpan = LANES.length;
+    var expanding = record.span < fullSpan;
+    var newSpan = expanding ? fullSpan : 1;
+    var newLane = expanding ? 0 : ((typeof record.originalLane === 'number') ? record.originalLane : 0);
+
+    releaseOccupancy(line, record);
+    var fits = canPlace(line, newLane, record.slot, record.units, newSpan);
+    if(!fits){
+      reserveOccupancy(line, record);
+      return;
+    }
+    pushUndo();
+    if(expanding){ record.originalLane = record.lane; }
+    record.lane = newLane;
+    record.span = newSpan;
+    reserveOccupancy(line, record);
+    el.style.top = (newLane*ROW_H_PX)+'px';
+    el.style.height = (newSpan*ROW_H_PX)+'px';
+  }
+
+  /* ================= drag and drop / move (pointer events) ================= */
+  var dragState = null;
+  var previewEl = null;
+
+  function clearDropPreview(){
+    if(previewEl){ previewEl.remove(); previewEl = null; }
+  }
+
+  function constrainToMeasureFor(info){
+    return true; /* sound and pause rods must always fit inside a single measure */
+  }
+
+  function updateDropPreview(clientX, clientY){
+    clearDropPreview();
+    var line = findLineAt(clientX, clientY);
+    if(!line || line.measures.length===0){ return; }
+    var rect = line.track.getBoundingClientRect();
+    var relX = clientX - rect.left;
+    var units = dragState.info.units;
+    var span = dragState.span;
+    var rawSlot = Math.round(relX/UNIT_PX - units/2);
+    var desiredLane = laneIndexFromY(line, clientY);
+    var constrain = constrainToMeasureFor(dragState.info);
+    var result = findBestSlotForSpanInLine(line, desiredLane, rawSlot, units, span, dragState.ignoreId, constrain);
+    var ok = result!==null;
+    var totalCap = lineTotalCapacity(line);
+    var slot = ok ? result.slot : Math.max(0, Math.min(totalCap-units, rawSlot));
+    var lane = ok ? result.lane : Math.max(0, Math.min(LANES.length-span, desiredLane));
+    var prev = document.createElement('div');
+    prev.className = 'drop-preview ' + (ok ? 'ok' : 'bad');
+    prev.style.left = (slot*UNIT_PX)+'px';
+    prev.style.width = (units*UNIT_PX)+'px';
+    prev.style.top = (lane*ROW_H_PX)+'px';
+    prev.style.height = (span*ROW_H_PX)+'px';
+    line.itemsLayer.appendChild(prev);
+    previewEl = prev;
+  }
+
+  var errorToastTimer = null;
+  function showErrorToast(msg){
+    var el = document.getElementById('errorToast');
+    el.textContent = msg;
+    el.style.display = 'block';
+    window.clearTimeout(errorToastTimer);
+    errorToastTimer = window.setTimeout(function(){ el.style.display = 'none'; }, 4000);
+  }
+
+  function checkAndFillIncompleteMeasures(line, placedSlot){
+    var cap = capacityPerMeasure();
+    var currentMeasureIdx = Math.floor(placedSlot/cap);
+    if(currentMeasureIdx <= 0){ return; }
+    var filledAny = false;
+    var incompleteMeasureNumbers = [];
+    var m, i;
+    for(m=0; m<currentMeasureIdx; m++){
+      var measureStart = m*cap;
+      var covered = [];
+      for(i=0;i<cap;i++){ covered.push(false); }
+      var hasAny = false;
+      line.items.forEach(function(it){
+        if(it.slot>=measureStart && it.slot<measureStart+cap){
+          hasAny = true;
+          for(var k=it.slot-measureStart; k<it.slot-measureStart+it.units && k<cap; k++){ if(k>=0){ covered[k]=true; } }
+        }
+      });
+      if(hasAny){
+        var gapStart = -1;
+        for(i=0;i<=cap;i++){
+          if(i<cap && !covered[i]){
+            if(gapStart===-1){ gapStart=i; }
+          } else if(gapStart!==-1){
+            var gapLen = i-gapStart;
+            var restUnits = decomposeRestUnits(gapLen);
+            var cursor = measureStart+gapStart;
+            restUnits.forEach(function(u){
+              var refId = u===8?'whole-rest':(u===4?'half-rest':(u===2?'quarter-rest':'eighth-rest'));
+              var info = RODS_BY_ID[refId];
+              if(canPlace(line, 0, cursor, u, LANES.length)){
+                placeItem(line, cursor, info, 0, LANES.length);
+              }
+              cursor += u;
+            });
+            filledAny = true;
+            gapStart = -1;
+          }
+        }
+        incompleteMeasureNumbers.push(m+1);
+      }
+    }
+    if(filledAny){
+      var label = incompleteMeasureNumbers.length===1 ? 'la misura '+incompleteMeasureNumbers[0]+' non era completa' : 'le misure '+incompleteMeasureNumbers.join(', ')+' non erano complete';
+      showErrorToast('Attenzione: '+label+'. Le parti mancanti sono state riempite con pause.');
+    }
+  }
+
+  function finalizeDrop(clientX, clientY){
+    var line = findLineAt(clientX, clientY);
+    if(!line || line.measures.length===0){ return false; }
+    var rect = line.track.getBoundingClientRect();
+    var relX = clientX - rect.left;
+    var units = dragState.info.units;
+    var span = dragState.span;
+    var rawSlot = Math.round(relX/UNIT_PX - units/2);
+    var desiredLane = laneIndexFromY(line, clientY);
+    var constrain = constrainToMeasureFor(dragState.info);
+    var result = findBestSlotForSpanInLine(line, desiredLane, rawSlot, units, span, dragState.ignoreId, constrain);
+    if(result!==null){
+      pushUndo();
+      placeItem(line, result.slot, dragState.info, result.lane, span);
+      checkAndFillIncompleteMeasures(line, result.slot);
+      return true;
+    }
+    return false;
+  }
+
+  function startDrag(evt, info, origin){
+    var span = (origin && info.kind==='pause') ? origin.record.span :
+      (info.kind==='pause' && polyphonyBlocked ? LANES.length : 1);
+    var widthPx = info.units*UNIT_PX;
+    var heightPx = span*ROW_H_PX;
+    if(origin){ origin.el.style.opacity = '0.25'; }
+
+    var ghost = document.createElement('div');
+    ghost.className = 'placed-rod drag-ghost ' + (info.kind==='pause' ? 'placed-pause' : 'placed-sound');
+    ghost.style.position = 'fixed';
+    ghost.style.width = widthPx+'px';
+    ghost.style.height = heightPx+'px';
+    ghost.style.left = (evt.clientX - widthPx/2)+'px';
+    ghost.style.top = (evt.clientY - heightPx/2)+'px';
+    ghost.style.pointerEvents = 'none';
+    if(info.kind==='sound'){
+      ghost.style.background = info.colorT;
+    }
+    ghost.innerHTML = '<span class="rod-icon">'+info.icon+'</span>';
+    if(info.kind==='sound' && info.squares < 1){
+      ghost.style.justifyContent = 'center';
+      ghost.querySelector('.rod-icon').style.width = 'auto';
+    }
+    if(info.kind==='pause' && (info.id==='whole-rest' || info.id==='half-rest')){
+      ghost.querySelector('.rod-icon svg').style.height = '23px';
+    }
+    if(info.kind==='pause' && info.id==='half-rest'){
+      ghost.style.justifyContent = 'flex-start';
+      var gIconEl = ghost.querySelector('.rod-icon');
+      gIconEl.style.width = SQUARE_PX+'px';
+      gIconEl.style.height = '100%';
+      gIconEl.style.flexShrink = '0';
+    }
+    document.body.appendChild(ghost);
+
+    dragState = {info:info, span:span, ignoreId: origin ? origin.record.id : null};
+
+    document.addEventListener('pointermove', onMove);
+    document.addEventListener('pointerup', onUp);
+    document.addEventListener('keydown', onKeyDown);
+
+    function onMove(e){
+      ghost.style.left = (e.clientX - widthPx/2)+'px';
+      ghost.style.top = (e.clientY - heightPx/2)+'px';
+      updateDropPreview(e.clientX, e.clientY);
+    }
+    function onUp(e){
+      var moved = finalizeDrop(e.clientX, e.clientY);
+      if(origin){
+        if(moved){
+          releaseOccupancy(origin.line, origin.record);
+          removeItemRecord(origin.line, origin.record.id);
+          origin.el.remove();
+        } else {
+          origin.el.style.opacity = '1';
+        }
+      }
+      cleanup();
+    }
+    function onKeyDown(e){
+      if(e.key==='Escape'){
+        if(origin){ origin.el.style.opacity = '1'; }
+        cleanup();
+      }
+    }
+    function cleanup(){
+      document.removeEventListener('pointermove', onMove);
+      document.removeEventListener('pointerup', onUp);
+      document.removeEventListener('keydown', onKeyDown);
+      ghost.remove();
+      clearDropPreview();
+      dragState = null;
+    }
+  }
+
+  function attachDrag(el){
+    el.addEventListener('pointerdown', function(e){
+      e.preventDefault();
+      startDrag(e, RODS_BY_ID[el.dataset.id], null);
+    });
+  }
+
+  /* ================= meter (time signature) controls ================= */
+  function setupMeterButtons(){
+    var btns = document.querySelectorAll('.meter-btn');
+    btns.forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var newMeter = parseInt(btn.dataset.meter, 10);
+        if(newMeter === meter){ return; }
+        if(hasAnyContent() && !window.confirm('Cambiando il metro il foglio verr\u00E0 svuotato. Continuare?')){ return; }
+        pushUndo();
+        meter = newMeter;
+        btns.forEach(function(b){ b.classList.remove('active'); });
+        btn.classList.add('active');
+        var total = allMeasuresFlat().length || DEFAULT_MEASURES;
+        buildWorksheet(total);
+      });
+    });
+  }
+
+  /* ================= worksheet toolbar buttons ================= */
+  function setupWorksheetToolbar(){
+    document.getElementById('addMeasureBtn').addEventListener('click', function(){
+      pushUndo();
+      addMeasure();
+    });
+    document.getElementById('removeMeasureBtn').addEventListener('click', function(){
+      pushUndo();
+      removeMeasure();
+    });
+    document.getElementById('clearBtn').addEventListener('click', function(){
+      if(window.confirm('Vuoi svuotare il foglio di lavoro?')){
+        pushUndo();
+        buildWorksheet(allMeasuresFlat().length || DEFAULT_MEASURES);
+      }
+    });
+    document.getElementById('saveAsBtn').addEventListener('click', saveSessionAs);
+    document.getElementById('saveBtn').addEventListener('click', saveSession);
+    document.getElementById('loadBtn').addEventListener('click', function(){
+      openSessionViaPickerOrInput();
+    });
+    document.getElementById('loadInput').addEventListener('change', function(e){
+      if(e.target.files && e.target.files[0]){ loadSessionFromFile(e.target.files[0]); }
+      e.target.value = '';
+    });
+    document.getElementById('undoBtn').addEventListener('click', undo);
+    document.getElementById('redoBtn').addEventListener('click', redo);
+    document.getElementById('pdfBtn').addEventListener('click', exportPdf);
+    document.getElementById('fullscreenBtn').addEventListener('click', toggleFullscreen);
+    document.getElementById('polyToggle').addEventListener('change', function(e){
+      polyphonyBlocked = !e.target.checked;
+    });
+  }
+
+  /* ================= PDF export (via the browser's native print-to-PDF) ================= */
+  var PRINT_TARGET_WIDTH = 1047; /* usable width, in CSS px at 96dpi, of an A4 landscape page (297mm) minus 10mm margins each side */
+  var PRINT_TARGET_HEIGHT = 718; /* usable height, in CSS px at 96dpi, of an A4 landscape page (210mm) minus 10mm margins each side */
+  var PRINT_LINES_PER_PAGE = 2;
+
+  function updatePrintHeader(){
+    var title = document.getElementById('docTitleInput').value.trim();
+    var author = document.getElementById('docAuthorInput').value.trim();
+    var titleEl = document.getElementById('printHeaderTitle');
+    var authorEl = document.getElementById('printHeaderAuthor');
+    titleEl.textContent = title;
+    authorEl.textContent = author;
+    titleEl.style.display = title ? 'block' : 'none';
+    authorEl.style.display = author ? 'block' : 'none';
+  }
+
+  function scaleForPrint(){
+    updatePrintHeader();
+    var worksheet = document.getElementById('worksheet');
+    var box = document.getElementById('printScaleBox');
+    worksheet.style.transform = '';
+    box.style.width = '';
+    box.style.height = '';
+    var rect = worksheet.getBoundingClientRect();
+    var scaleW = rect.width > PRINT_TARGET_WIDTH ? PRINT_TARGET_WIDTH/rect.width : 1;
+
+    var lineEl = document.querySelector('.worksheet-line');
+    var scaleH = 1;
+    if(lineEl){
+      var linesHeight = lineEl.getBoundingClientRect().height * PRINT_LINES_PER_PAGE;
+      if(linesHeight > PRINT_TARGET_HEIGHT){ scaleH = PRINT_TARGET_HEIGHT/linesHeight; }
+    }
+
+    var scale = Math.min(scaleW, scaleH);
+    box.style.width = (rect.width*scale)+'px';
+    box.style.height = (rect.height*scale)+'px';
+    worksheet.style.transform = 'scale('+scale+')';
+    worksheet.style.transformOrigin = 'top left';
+  }
+  function unscaleAfterPrint(){
+    var worksheet = document.getElementById('worksheet');
+    var box = document.getElementById('printScaleBox');
+    worksheet.style.transform = '';
+    box.style.width = '';
+    box.style.height = '';
+    hidePrintHeader();
+  }
+
+  function hidePrintHeader(){
+    document.getElementById('printHeaderTitle').style.display = 'none';
+    document.getElementById('printHeaderAuthor').style.display = 'none';
+  }
+  function exportPdf(){
+    window.print();
+  }
+  /* Sizing right before window.print() is unreliable (some browsers snapshot the page
+     before the style change paints). "beforeprint"/"afterprint" are fired by the browser
+     itself around the ACTUAL print action, whether triggered by this button, Ctrl+P or the
+     browser menu, so hooking them guarantees the scale is applied at the right moment. */
+  window.addEventListener('beforeprint', scaleForPrint);
+  window.addEventListener('afterprint', unscaleAfterPrint);
+
+  /* ================= session state: shared by save/load and undo/redo ================= */
+  function serializeSession(){
+    return {
+      app:'regoli-ritmici',
+      version:7,
+      meter:meter,
+      bpm:bpm,
+      polyBlocked:polyphonyBlocked,
+      measureCount: allMeasuresFlat().length,
+      lines: lines.map(function(l){
+        return l.items.map(function(it){
+          return {refId:it.refId, slot:it.slot, lane:it.lane, span:it.span};
+        });
+      })
+    };
+  }
+
+  function applySessionData(data){
+    meter = data.meter===3 ? 3 : (data.meter===2 ? 2 : 4);
+    bpm = (typeof data.bpm==='number' && data.bpm>=40 && data.bpm<=208) ? data.bpm : 96;
+    polyphonyBlocked = (typeof data.polyBlocked==='boolean') ? data.polyBlocked : true;
+    document.getElementById('polyToggle').checked = !polyphonyBlocked;
+    document.querySelectorAll('.meter-btn').forEach(function(b){
+      b.classList.toggle('active', parseInt(b.dataset.meter,10)===meter);
+    });
+    document.getElementById('bpmSlider').value = bpm;
+    document.getElementById('bpmValue').textContent = bpm;
+
+    var lineData = Array.isArray(data.lines) ? data.lines : [];
+    var totalMeasures;
+    if(typeof data.measureCount === 'number' && data.measureCount > 0){
+      totalMeasures = data.measureCount;
+    } else {
+      /* older saved files: every line except the last was always filled to a full 8 measures */
+      totalMeasures = 0;
+      lineData.forEach(function(items, idx){
+        if(idx < lineData.length-1){
+          totalMeasures += MEASURES_PER_LINE;
+        } else {
+          var maxEnd = 0;
+          items.forEach(function(it){ maxEnd = Math.max(maxEnd, it.slot+((RODS_BY_ID[it.refId]||{units:0}).units)); });
+          totalMeasures += Math.max(1, Math.ceil(maxEnd/capacityPerMeasure()));
+        }
+      });
+    }
+    buildWorksheet(Math.max(totalMeasures, 1));
+
+    lineData.forEach(function(items, idx){
+      if(idx>=lines.length){ return; }
+      var line = lines[idx];
+      items.forEach(function(it){
+        var info = RODS_BY_ID[it.refId];
+        if(!info){ return; }
+        var span = it.span || 1;
+        var lane = it.lane || 0;
+        if(canPlace(line, lane, it.slot, info.units, span)){
+          placeItem(line, it.slot, info, lane, span);
+        }
+      });
+    });
+  }
+
+  /* ================= undo / redo ================= */
+  var undoStack = [];
+  var redoStack = [];
+  var MAX_UNDO = 50;
+
+  function pushUndo(){
+    undoStack.push(JSON.stringify(serializeSession()));
+    if(undoStack.length>MAX_UNDO){ undoStack.shift(); }
+    redoStack = [];
+    updateUndoRedoButtons();
+  }
+  function undo(){
+    if(undoStack.length===0){ return; }
+    var current = JSON.stringify(serializeSession());
+    var prev = undoStack.pop();
+    redoStack.push(current);
+    applySessionData(JSON.parse(prev));
+    updateUndoRedoButtons();
+  }
+  function redo(){
+    if(redoStack.length===0){ return; }
+    var current = JSON.stringify(serializeSession());
+    var next = redoStack.pop();
+    undoStack.push(current);
+    applySessionData(JSON.parse(next));
+    updateUndoRedoButtons();
+  }
+  function updateUndoRedoButtons(){
+    document.getElementById('undoBtn').disabled = undoStack.length===0;
+    document.getElementById('redoBtn').disabled = redoStack.length===0;
+  }
+
+  /* ================= save / load session (as a file) ================= */
+  function pad2(n){ return (n<10?'0':'')+n; }
+  var currentFileHandle = null;
+
+  function timestampStr(){
+    var now = new Date();
+    return now.getFullYear()+'-'+pad2(now.getMonth()+1)+'-'+pad2(now.getDate())+'_'+pad2(now.getHours())+pad2(now.getMinutes());
+  }
+
+  function downloadSessionFallback(){
+    var data = serializeSession();
+    var blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'regoli-ritmici-'+timestampStr()+'.json';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.setTimeout(function(){ URL.revokeObjectURL(url); }, 2000);
+  }
+
+  function writeSessionToHandle(handle){
+    var data = serializeSession();
+    return handle.createWritable().then(function(writable){
+      return writable.write(JSON.stringify(data, null, 2)).then(function(){
+        return writable.close();
+      });
+    });
+  }
+
+  function saveSessionAs(){
+    if(window.showSaveFilePicker){
+      window.showSaveFilePicker({
+        suggestedName: 'regoli-ritmici-'+timestampStr()+'.json',
+        types: [{description:'Regoli musicali', accept:{'application/json':['.json']}}]
+      }).then(function(handle){
+        return writeSessionToHandle(handle).then(function(){
+          currentFileHandle = handle;
+        });
+      }).catch(function(){ /* user cancelled the picker: no-op */ });
+    } else {
+      downloadSessionFallback();
+    }
+  }
+
+  function saveSession(){
+    if(currentFileHandle){
+      writeSessionToHandle(currentFileHandle).catch(function(){
+        currentFileHandle = null;
+        saveSessionAs();
+      });
+    } else {
+      saveSessionAs();
+    }
+  }
+
+  function openSessionViaPickerOrInput(){
+    if(window.showOpenFilePicker){
+      window.showOpenFilePicker({
+        types: [{description:'Regoli musicali', accept:{'application/json':['.json']}}],
+        multiple: false
+      }).then(function(handles){
+        var handle = handles[0];
+        return handle.getFile().then(function(file){
+          return file.text().then(function(text){
+            var data;
+            try{ data = JSON.parse(text); }
+            catch(err){ window.alert('File non valido.'); return; }
+            if(!data || data.app!=='regoli-ritmici' || !Array.isArray(data.lines)){
+              window.alert('File non valido.');
+              return;
+            }
+            pushUndo();
+            applySessionData(data);
+            currentFileHandle = handle;
+          });
+        });
+      }).catch(function(){ /* user cancelled the picker: no-op */ });
+    } else {
+      document.getElementById('loadInput').click();
+    }
+  }
+
+  function loadSessionFromFile(file){
+    var reader = new FileReader();
+    reader.onload = function(e){
+      var data;
+      try{ data = JSON.parse(e.target.result); }
+      catch(err){ window.alert('File non valido.'); return; }
+      if(!data || data.app!=='regoli-ritmici' || !Array.isArray(data.lines)){
+        window.alert('File non valido.');
+        return;
+      }
+      currentFileHandle = null;
+      pushUndo();
+      applySessionData(data);
+    };
+    reader.readAsText(file);
+  }
+
+  /* ================= metronome (Web Audio API, one uniform click) ================= */
+  var audioCtx = null;
+  var isPlaying = false;
+  var nextNoteTime = 0.0;
+  var scheduleAheadTime = 0.15;
+  var lookaheadMs = 25;
+  var timerID = null;
+  var scheduledTicks = [];
+  var tickCounter = 0;
+  var MAX_ANGLE = 18;
+
+  var masterBus = null;
+  var volumeGain = null;
+  var currentVolume = 0.8;
+  function ensureAudio(){
+    if(!audioCtx){
+      var AC = window.AudioContext || window.webkitAudioContext;
+      audioCtx = new AC();
+      masterBus = audioCtx.createDynamicsCompressor();
+      masterBus.threshold.value = -20;
+      masterBus.knee.value = 22;
+      masterBus.ratio.value = 4;
+      masterBus.attack.value = 0.003;
+      masterBus.release.value = 0.18;
+      volumeGain = audioCtx.createGain();
+      volumeGain.gain.value = currentVolume;
+      masterBus.connect(volumeGain);
+      volumeGain.connect(audioCtx.destination);
+    }
+    if(audioCtx.state === 'suspended'){ audioCtx.resume(); }
+  }
+
+  function playClick(time){
+    var osc = audioCtx.createOscillator();
+    var gain = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = 1200;
+    gain.gain.setValueAtTime(0.0001, time);
+    gain.gain.exponentialRampToValueAtTime(0.5, time+0.004);
+    gain.gain.exponentialRampToValueAtTime(0.0001, time+0.05);
+    osc.connect(gain);
+    gain.connect(masterBus);
+    osc.start(time);
+    osc.stop(time+0.06);
+  }
+
+  function scheduler(){
+    while(nextNoteTime < audioCtx.currentTime + scheduleAheadTime || scheduledTicks.length < 2){
+      playClick(nextNoteTime);
+      scheduledTicks.push({time:nextNoteTime, idx:tickCounter});
+      tickCounter++;
+      nextNoteTime += 60.0/bpm;
+    }
+    timerID = window.setTimeout(scheduler, lookaheadMs);
+  }
+
+  function setPendulumAngle(angle){
+    document.getElementById('pendulumArm').style.transform = 'rotate('+angle+'deg)';
+  }
+
+  function animatePendulum(){
+    if(!isPlaying){ setPendulumAngle(0); return; }
+    var now = audioCtx.currentTime;
+    while(scheduledTicks.length>2 && scheduledTicks[1].time <= now){ scheduledTicks.shift(); }
+    if(scheduledTicks.length>=2){
+      var t0 = scheduledTicks[0];
+      var t1 = scheduledTicks[1];
+      var span = t1.time - t0.time;
+      var prog = span>0 ? Math.max(0, Math.min(1, (now - t0.time)/span)) : 0;
+      var sideStart = (t0.idx % 2 === 0) ? -1 : 1;
+      var side = sideStart + (-sideStart-sideStart)*prog;
+      setPendulumAngle(side*MAX_ANGLE);
+    }
+    window.requestAnimationFrame(animatePendulum);
+  }
+
+  function updateMetroUI(playing){
+    var btn = document.getElementById('metroToggle');
+    btn.setAttribute('aria-pressed', playing?'true':'false');
+  }
+
+  function startMetronome(){
+    ensureAudio();
+    if(isPlaying){ return; }
+    isPlaying = true;
+    scheduledTicks = [];
+    tickCounter = 0;
+    nextNoteTime = computeSyncedMetronomeStart();
+    scheduler();
+    window.requestAnimationFrame(animatePendulum);
+    updateMetroUI(true);
+  }
+
+  function stopMetronome(){
+    isPlaying = false;
+    window.clearTimeout(timerID);
+    updateMetroUI(false);
+  }
+
+  function setBpm(newBpm){
+    bpm = Math.max(40, Math.min(208, newBpm));
+    document.getElementById('bpmSlider').value = bpm;
+    document.getElementById('bpmValue').textContent = bpm;
+  }
+
+  function setupMetronome(){
+    document.getElementById('metroToggle').addEventListener('click', function(){
+      if(isPlaying){ stopMetronome(); } else { startMetronome(); }
+    });
+    document.getElementById('bpmSlider').addEventListener('input', function(e){
+      setBpm(parseInt(e.target.value, 10));
+    });
+    document.getElementById('bpmMinus').addEventListener('click', function(){ setBpm(bpm-1); });
+    document.getElementById('bpmPlus').addEventListener('click', function(){ setBpm(bpm+1); });
+  }
+
+  /* ================= playback: perform the notes and rests written on the worksheet ================= */
+  var LANE_FREQ = [523.25, 493.88, 440.00, 392.00, 349.23, 329.63, 293.66, 261.63]; /* DO' SI LA SOL FA MI RE DO */
+  var PLAYBACK_LOOKAHEAD = 0.15;
+  var PLAYBACK_TICK_MS = 25;
+
+  var playback = {
+    playing:false,
+    positionSec:0,
+    startAudioTime:0,
+    schedule:null,
+    nextEventIndex:0,
+    timerID:null,
+    rafID:null
+  };
+
+  function buildPlaybackSchedule(){
+    var unitSec = 30/bpm; /* an eighth-note unit, given bpm counts quarter notes per minute */
+    var events = [];
+    var cumulative = 0;
+    lines.forEach(function(line, lineIdx){
+      var cap = lineTotalCapacity(line);
+      line.items.forEach(function(it){
+        if(it.kind==='sound'){
+          events.push({
+            startSec: cumulative + it.slot*unitSec,
+            durSec: it.units*unitSec,
+            freq: LANE_FREQ[it.lane],
+            lane: it.lane,
+            lineIdx: lineIdx
+          });
+        }
+      });
+      cumulative += cap*unitSec;
+    });
+    events.sort(function(a,b){ return a.startSec-b.startSec; });
+    return {events:events, totalSec:cumulative, unitSec:unitSec};
+  }
+
+  function playNoteTone(freq, time, dur){
+    var osc = audioCtx.createOscillator();
+    var osc2 = audioCtx.createOscillator();
+    var filter = audioCtx.createBiquadFilter();
+    var gain = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+    osc2.type = 'sine';
+    osc2.frequency.value = freq*2; /* a quiet octave overtone adds warmth without harshness */
+    filter.type = 'lowpass';
+    filter.frequency.value = 2600;
+    filter.Q.value = 0.6;
+    var atk = 0.02;
+    var rel = Math.min(0.12, dur*0.4);
+    gain.gain.setValueAtTime(0.0001, time);
+    gain.gain.exponentialRampToValueAtTime(0.28, time+atk);
+    gain.gain.setValueAtTime(0.28, time+Math.max(atk, dur-rel));
+    gain.gain.exponentialRampToValueAtTime(0.0001, time+dur);
+    var overtoneGain = audioCtx.createGain();
+    overtoneGain.gain.value = 0.18;
+    osc.connect(filter);
+    osc2.connect(overtoneGain);
+    overtoneGain.connect(filter);
+    filter.connect(gain);
+    gain.connect(masterBus);
+    osc.start(time);
+    osc.stop(time+dur+0.03);
+    osc2.start(time);
+    osc2.stop(time+dur+0.03);
+  }
+
+  function playbackSchedulerTick(){
+    if(!playback.playing){ return; }
+    var ctxNow = audioCtx.currentTime;
+    while(playback.nextEventIndex < playback.schedule.events.length){
+      var ev = playback.schedule.events[playback.nextEventIndex];
+      var absTime = playback.startAudioTime + (ev.startSec - playback.positionSec);
+      if(absTime > ctxNow + PLAYBACK_LOOKAHEAD){ break; }
+      playNoteTone(ev.freq, Math.max(absTime, ctxNow), ev.durSec);
+      playback.nextEventIndex++;
+    }
+    playback.timerID = window.setTimeout(playbackSchedulerTick, PLAYBACK_TICK_MS);
+  }
+
+  function getPlayheadEl(){
+    var ph = document.getElementById('playhead');
+    if(!ph){
+      ph = document.createElement('div');
+      ph.id = 'playhead';
+      ph.className = 'playhead';
+      document.body.appendChild(ph);
+    }
+    return ph;
+  }
+
+  var lastScrolledLineIdx = -1;
+  function positionPlayheadAt(elapsedSec, unitSec){
+    var cumulative = 0, i, targetLine = null, targetLineIdx = -1, within = 0;
+    for(i=0;i<lines.length;i++){
+      var dur = lineTotalCapacity(lines[i])*unitSec;
+      if(elapsedSec < cumulative+dur || i===lines.length-1){
+        targetLine = lines[i];
+        targetLineIdx = i;
+        within = elapsedSec-cumulative;
+        break;
+      }
+      cumulative += dur;
+    }
+    if(!targetLine){ return; }
+    if(targetLineIdx !== lastScrolledLineIdx){
+      lastScrolledLineIdx = targetLineIdx;
+      targetLine.el.scrollIntoView({behavior:'smooth', block:'nearest'});
+    }
+    var ph = getPlayheadEl();
+    ph.style.height = (LANES.length*ROW_H_PX)+'px';
+    ph.style.display = 'block';
+    targetLine.itemsLayer.appendChild(ph);
+    ph.style.left = ((within/unitSec)*UNIT_PX)+'px';
+  }
+
+  function hidePlayhead(){
+    var ph = document.getElementById('playhead');
+    if(ph){ ph.style.display = 'none'; }
+  }
+
+  function updateTransportUI(){
+    document.getElementById('playBtn').disabled = playback.playing;
+    document.getElementById('stopBtn').disabled = !playback.playing;
+  }
+
+  function updatePlayheadFrame(){
+    if(!playback.playing){ return; }
+    var elapsed = playback.positionSec + (audioCtx.currentTime - playback.startAudioTime);
+    if(elapsed >= playback.schedule.totalSec){
+      stopPlayback();
+      playback.positionSec = 0;
+      hidePlayhead();
+      updateKeyHighlights(-1);
+      return;
+    }
+    positionPlayheadAt(elapsed, playback.schedule.unitSec);
+    updateKeyHighlights(elapsed);
+    playback.rafID = window.requestAnimationFrame(updatePlayheadFrame);
+  }
+
+  function getKeyElement(lineIdx, lane){
+    if(!lines[lineIdx]){ return null; }
+    var kb = lines[lineIdx].el.querySelector('.keyboard-col');
+    if(!kb){ return null; }
+    var cells = kb.querySelectorAll('.key-cell');
+    return cells[lane] || null;
+  }
+
+  var activeKeyEls = [];
+  function updateKeyHighlights(elapsed){
+    var stillActive = [];
+    if(elapsed >= 0 && playback.schedule){
+      playback.schedule.events.forEach(function(ev){
+        if(elapsed >= ev.startSec && elapsed < ev.startSec+ev.durSec){
+          var el = getKeyElement(ev.lineIdx, ev.lane);
+          if(el && stillActive.indexOf(el)===-1){ stillActive.push(el); }
+        }
+      });
+    }
+    activeKeyEls.forEach(function(el){
+      if(stillActive.indexOf(el)===-1){ el.classList.remove('key-active'); }
+    });
+    stillActive.forEach(function(el){
+      if(activeKeyEls.indexOf(el)===-1){ el.classList.add('key-active'); }
+    });
+    activeKeyEls = stillActive;
+  }
+
+  function computeSyncedMetronomeStart(){
+    if(!playback.playing){ return audioCtx.currentTime + 0.05; }
+    var pieceElapsed = playback.positionSec + (audioCtx.currentTime - playback.startAudioTime);
+    var beatSec = 60/bpm;
+    var beatsElapsed = pieceElapsed/beatSec;
+    var nextBeatIndex = Math.ceil(beatsElapsed - 1e-6);
+    var nextBeatPieceTime = nextBeatIndex*beatSec;
+    var delta = Math.max(nextBeatPieceTime - pieceElapsed, 0.02);
+    return audioCtx.currentTime + delta;
+  }
+
+  function resyncMetronome(){
+    scheduledTicks = [];
+    tickCounter = 0;
+    nextNoteTime = computeSyncedMetronomeStart();
+    window.clearTimeout(timerID);
+    scheduler();
+    window.requestAnimationFrame(animatePendulum);
+  }
+
+  function startPlayback(){
+    if(playback.playing){ return; }
+    if(lines.length===0){ return; }
+    ensureAudio();
+    playback.schedule = buildPlaybackSchedule();
+    if(playback.positionSec >= playback.schedule.totalSec){ playback.positionSec = 0; }
+    playback.playing = true;
+    playback.startAudioTime = audioCtx.currentTime + 0.06;
+    playback.nextEventIndex = 0;
+    lastScrolledLineIdx = -1;
+    while(playback.nextEventIndex < playback.schedule.events.length &&
+          playback.schedule.events[playback.nextEventIndex].startSec < playback.positionSec){
+      playback.nextEventIndex++;
+    }
+    playbackSchedulerTick();
+    playback.rafID = window.requestAnimationFrame(updatePlayheadFrame);
+    if(isPlaying){ resyncMetronome(); }
+    updateTransportUI();
+  }
+
+  function stopPlayback(){
+    if(!playback.playing){ return; }
+    playback.positionSec = playback.positionSec + (audioCtx.currentTime - playback.startAudioTime);
+    playback.playing = false;
+    window.clearTimeout(playback.timerID);
+    if(playback.rafID){ window.cancelAnimationFrame(playback.rafID); }
+    updateKeyHighlights(-1);
+    updateTransportUI();
+  }
+
+  function rewindPlayback(){
+    stopPlayback();
+    playback.positionSec = 0;
+    hidePlayhead();
+    updateKeyHighlights(-1);
+  }
+
+  function setupPlayback(){
+    document.getElementById('playBtn').addEventListener('click', startPlayback);
+    document.getElementById('stopBtn').addEventListener('click', stopPlayback);
+    document.getElementById('rewindBtn').addEventListener('click', rewindPlayback);
+    document.getElementById('volumeSlider').addEventListener('input', function(e){
+      currentVolume = parseInt(e.target.value, 10)/100;
+      if(volumeGain){ volumeGain.gain.value = currentVolume; }
+    });
+    updateTransportUI();
+  }
+
+  /* ================= convert worksheet content to conventional staff notation ================= */
+  /* Staff step 0 = bottom line (MI/E4); each unit = one half-step position (line<->space).
+     Matches LANES = ["DO'",'SI','LA','SOL','FA','MI','RE','DO'] in order. */
+  var LANE_STAFF_STEP = [5, 4, 3, 2, 1, 0, -1, -2];
+  var STAFF_STEP_PX = 4;      /* half of the line-to-line gap */
+  var STAFF_LINE_GAP = 8;
+  var NOTATION_UNIT_PX = 20;  /* px per eighth-note unit in the generated notation */
+  var MEASURES_PER_SYSTEM = 4;
+
+  function decomposeRestUnits(totalUnits){
+    var values = [8,4,2,1];
+    var out = [];
+    var remaining = totalUnits;
+    while(remaining > 0){
+      var v = values[0];
+      for(var i=0;i<values.length;i++){ if(values[i] <= remaining){ v = values[i]; break; } }
+      out.push(v);
+      remaining -= v;
+    }
+    return out;
+  }
+
+  function buildMeasureEvents(items, cap){
+    var i;
+    var covered = [];
+    for(i=0;i<cap;i++){ covered.push(false); }
+    items.forEach(function(it){
+      for(var k=it.slot; k<it.slot+it.units && k<cap; k++){ if(k>=0){ covered[k]=true; } }
+    });
+
+    var events = [];
+    var soundGroups = {};
+    items.forEach(function(it){
+      if(it.kind==='sound'){
+        var key = it.slot+':'+it.units;
+        if(!soundGroups[key]){ soundGroups[key] = {slot:it.slot, units:it.units, lanes:[]}; }
+        soundGroups[key].lanes.push(it.lane);
+      } else {
+        events.push({type:'rest', slot:it.slot, units:it.units});
+      }
+    });
+    Object.keys(soundGroups).forEach(function(k){
+      var g = soundGroups[k];
+      events.push({type:'chord', slot:g.slot, units:g.units, lanes:g.lanes});
+    });
+
+    var gapStart = -1;
+    for(i=0;i<=cap;i++){
+      if(i<cap && !covered[i]){
+        if(gapStart===-1){ gapStart=i; }
+      } else if(gapStart!==-1){
+        var cursor = gapStart;
+        decomposeRestUnits(i-gapStart).forEach(function(v){
+          events.push({type:'rest', slot:cursor, units:v});
+          cursor += v;
+        });
+        gapStart = -1;
+      }
+    }
+
+    events.sort(function(a,b){ return a.slot-b.slot; });
+    return events;
+  }
+
+  function gatherAllMeasureEvents(){
+    var out = [];
+    var cap = capacityPerMeasure();
+    lines.forEach(function(line){
+      line.measures.forEach(function(m, idx){
+        var measureStart = idx*cap;
+        var itemsInMeasure = line.items
+          .filter(function(it){ return it.slot >= measureStart && it.slot < measureStart+cap; })
+          .map(function(it){ return {slot:it.slot-measureStart, units:it.units, kind:it.kind, lane:it.lane}; });
+        out.push(buildMeasureEvents(itemsInMeasure, cap));
+      });
+    });
+    return out;
+  }
+
+  var CLEF_PATH_D = "M85.0 0.0 L75.0 3.0 L61.0 19.0 L51.0 47.0 L53.0 86.0 L14.0 126.0 L5.0 142.0 L0.0 161.0 L2.0 189.0 L16.0 214.0 L38.0 230.0 L58.0 235.0 L74.0 235.0 L80.0 272.0 L75.0 286.0 L67.0 293.0 L59.0 296.0 L45.0 294.0 L59.0 279.0 L58.0 267.0 L50.0 258.0 L42.0 255.0 L31.0 257.0 L20.0 269.0 L19.0 285.0 L24.0 295.0 L37.0 304.0 L50.0 307.0 L67.0 304.0 L84.0 291.0 L90.0 276.0 L85.0 234.0 L111.0 214.0 L121.0 189.0 L118.0 168.0 L108.0 152.0 L94.0 142.0 L72.0 138.0 L67.0 110.0 L90.0 83.0 L101.0 53.0 L99.0 26.0 ZM76.0 161.0 L78.0 161.0 L79.0 162.0 L81.0 162.0 L82.0 163.0 L84.0 163.0 L85.0 164.0 L88.0 165.0 L90.0 167.0 L91.0 167.0 L97.0 173.0 L97.0 174.0 L99.0 176.0 L99.0 177.0 L100.0 178.0 L100.0 179.0 L102.0 182.0 L102.0 184.0 L103.0 185.0 L103.0 200.0 L102.0 201.0 L102.0 203.0 L101.0 204.0 L100.0 207.0 L98.0 209.0 L98.0 210.0 L91.0 217.0 L90.0 217.0 L85.0 221.0 L84.0 221.0 L83.0 220.0 L83.0 215.0 L82.0 214.0 L82.0 209.0 L81.0 208.0 L81.0 201.0 L80.0 200.0 L80.0 194.0 L79.0 193.0 L79.0 187.0 L78.0 186.0 L78.0 180.0 L77.0 179.0 L77.0 174.0 L76.0 173.0 L76.0 167.0 L75.0 166.0 L75.0 162.0 ZM55.0 119.0 L58.0 120.0 L60.0 139.0 L43.0 150.0 L36.0 159.0 L31.0 172.0 L31.0 184.0 L37.0 198.0 L45.0 206.0 L50.0 209.0 L56.0 210.0 L57.0 206.0 L47.0 198.0 L44.0 192.0 L44.0 179.0 L52.0 167.0 L58.0 163.0 L63.0 162.0 L65.0 164.0 L67.0 177.0 L67.0 184.0 L73.0 220.0 L72.0 225.0 L54.0 225.0 L37.0 219.0 L31.0 215.0 L20.0 204.0 L16.0 197.0 L13.0 187.0 L14.0 168.0 L21.0 152.0 L27.0 144.0 L41.0 130.0 ZM86.0 26.0 L90.0 30.0 L90.0 32.0 L91.0 33.0 L91.0 42.0 L90.0 43.0 L90.0 45.0 L89.0 46.0 L89.0 48.0 L87.0 51.0 L87.0 53.0 L85.0 55.0 L85.0 56.0 L84.0 57.0 L84.0 58.0 L81.0 61.0 L81.0 62.0 L78.0 65.0 L78.0 66.0 L69.0 75.0 L68.0 75.0 L65.0 78.0 L64.0 78.0 L62.0 76.0 L62.0 72.0 L61.0 71.0 L61.0 58.0 L62.0 57.0 L62.0 53.0 L63.0 52.0 L63.0 49.0 L64.0 48.0 L64.0 46.0 L65.0 45.0 L65.0 44.0 L66.0 43.0 L66.0 42.0 L67.0 41.0 L67.0 40.0 L68.0 39.0 L68.0 38.0 L70.0 36.0 L70.0 35.0 L76.0 29.0 L77.0 29.0 L79.0 27.0 L80.0 27.0 L81.0 26.0 Z";
+  var CLEF_BBOX_H = 307;
+
+  function drawClef(x, staffTopY){
+    /* scale/position derived from a reference image: clef height = 1.844x staff height,
+       clef top sits 0.4115x staff-height above the top staff line */
+    var scale = (STAFF_LINE_GAP*4*1.844)/CLEF_BBOX_H;
+    var translateX = x;
+    var translateY = staffTopY - STAFF_LINE_GAP*4*0.4115;
+    return '<path d="'+CLEF_PATH_D+'" fill="#1c1c1c" fill-rule="evenodd" transform="translate('+translateX.toFixed(2)+','+translateY.toFixed(2)+') scale('+scale.toFixed(4)+')"/>';
+  }
+
+  function noteHead(cx, cy, filled){
+    return '<ellipse cx="'+cx.toFixed(1)+'" cy="'+cy.toFixed(1)+'" rx="4.4" ry="3.3" fill="'+(filled?'#1c1c1c':'none')+'" stroke="#1c1c1c" stroke-width="1.1" transform="rotate(-18 '+cx.toFixed(1)+' '+cy.toFixed(1)+')"/>';
+  }
+
+  function restGlyph(cx, baselineY, units){
+    var html = '';
+    var midY = baselineY - STAFF_STEP_PX*4;
+    if(units===8){
+      var topY4 = baselineY - 6*STAFF_STEP_PX; /* line 4: whole rest hangs below it */
+      html += '<rect x="'+(cx-4.5).toFixed(1)+'" y="'+topY4.toFixed(1)+'" width="9" height="4" fill="#1c1c1c"/>';
+    } else if(units===4){
+      var line3Y = baselineY - 4*STAFF_STEP_PX; /* line 3 (middle): half rest sits above it */
+      html += '<rect x="'+(cx-4.5).toFixed(1)+'" y="'+(line3Y-4).toFixed(1)+'" width="9" height="4" fill="#1c1c1c"/>';
+    } else if(units===2){
+      html += '<g transform="translate('+(cx-6.5).toFixed(1)+','+(midY-13).toFixed(1)+') scale(0.5)">' +
+        '<path d="M 1.8 0.0 L 1.5 0.3 L 1.5 1.2 L 5.9 7.1 L 5.9 8.1 L 0.3 16.5 L 0.2 18.0 L 6.2 25.5 L 3.7 25.7 L 2.2 26.4 L 1.2 27.4 L 0.3 28.9 L 0.0 31.1 L 1.2 33.6 L 5.5 39.3 L 6.6 40.0 L 6.9 39.8 L 7.1 39.0 L 4.9 35.1 L 4.5 33.8 L 5.2 31.6 L 6.7 30.4 L 8.2 30.3 L 9.6 30.8 L 11.8 32.3 L 12.4 32.3 L 12.8 31.8 L 12.4 30.9 L 5.7 22.7 L 5.9 21.8 L 11.4 13.6 L 11.4 12.4 L 2.9 0.7 Z" fill="#1c1c1c"/></g>';
+    } else {
+      html += '<g transform="translate('+(cx-6).toFixed(1)+','+(midY-13).toFixed(1)+') scale(0.46)">' +
+        '<path d="M 23.2 0.0 L 21.8 0.5 L 18.9 5.0 L 15.8 8.4 L 13.8 9.8 L 10.9 10.9 L 12.2 8.4 L 12.2 5.4 L 11.2 3.1 L 9.1 1.3 L 6.6 0.5 L 3.8 1.0 L 1.4 2.7 L 0.2 5.0 L 0.0 7.8 L 1.3 10.7 L 3.2 12.2 L 6.5 13.4 L 10.2 13.5 L 13.7 12.6 L 16.4 11.0 L 19.3 8.3 L 9.4 39.2 L 11.6 40.0 L 23.9 1.6 L 23.9 0.7 Z" fill="#1c1c1c"/></g>';
+    }
+    return html;
+  }
+
+  function computeConjunctOffsets(steps, stemUp){
+    var sorted = steps.slice().sort(function(a,b){ return a-b; });
+    var offsets = {};
+    sorted.forEach(function(s){ offsets[s] = 0; });
+    var noteOffset = 7.5;
+    for(var i=1;i<sorted.length;i++){
+      if(sorted[i]-sorted[i-1]===1){
+        if(stemUp){ offsets[sorted[i]] = noteOffset; }
+        else { offsets[sorted[i-1]] = -noteOffset; }
+      }
+    }
+    return offsets;
+  }
+
+  function renderNoteOrChord(cx, baselineY, ev, noFlag, forcedStemUp, offsetOverride){
+    var html = '';
+    var steps = ev.lanes.map(function(l){ return LANE_STAFF_STEP[l]; });
+    var minStep = Math.min.apply(null, steps);
+    var maxStep = Math.max.apply(null, steps);
+    var stemUp = (typeof forcedStemUp === 'boolean') ? forcedStemUp : (maxStep < 4); /* below the middle line -> stem up on the right */
+    var filled = ev.units < 4;
+    var offsets;
+    if(offsetOverride){
+      offsets = {};
+      ev.lanes.forEach(function(l, li){ offsets[steps[li]] = offsetOverride[l] || 0; });
+    } else {
+      offsets = computeConjunctOffsets(steps, stemUp);
+    }
+    steps.forEach(function(st){
+      var cy = baselineY - st*STAFF_STEP_PX;
+      var noteCx = cx + (offsets[st]||0);
+      html += noteHead(noteCx, cy, filled);
+      if(st <= -2){
+        html += '<line x1="'+(noteCx-7).toFixed(1)+'" y1="'+cy.toFixed(1)+'" x2="'+(noteCx+7).toFixed(1)+'" y2="'+cy.toFixed(1)+'" stroke="#1c1c1c" stroke-width="1"/>';
+      }
+    });
+    if(ev.units !== 8){
+      var stemStep = stemUp ? minStep : maxStep;
+      var stemNoteY = baselineY - stemStep*STAFF_STEP_PX;
+      var stemLen = 26;
+      var stemX = stemUp ? cx+4.2 : cx-4.2;
+      var stemY2 = stemUp ? stemNoteY-stemLen : stemNoteY+stemLen;
+      html += '<line x1="'+stemX.toFixed(1)+'" y1="'+stemNoteY.toFixed(1)+'" x2="'+stemX.toFixed(1)+'" y2="'+stemY2.toFixed(1)+'" stroke="#1c1c1c" stroke-width="1.2"/>';
+      if(ev.units === 1 && !noFlag){
+        var fy = stemY2;
+        if(stemUp){
+          html += '<path d="M'+stemX.toFixed(1)+' '+fy.toFixed(1)+' C '+(stemX+7).toFixed(1)+' '+(fy+3).toFixed(1)+', '+(stemX+8).toFixed(1)+' '+(fy+9).toFixed(1)+', '+(stemX+3).toFixed(1)+' '+(fy+13).toFixed(1)+'" fill="none" stroke="#1c1c1c" stroke-width="1.2" stroke-linecap="round"/>';
+        } else {
+          html += '<path d="M'+stemX.toFixed(1)+' '+fy.toFixed(1)+' C '+(stemX+7).toFixed(1)+' '+(fy-3).toFixed(1)+', '+(stemX+8).toFixed(1)+' '+(fy-9).toFixed(1)+', '+(stemX+3).toFixed(1)+' '+(fy-13).toFixed(1)+'" fill="none" stroke="#1c1c1c" stroke-width="1.2" stroke-linecap="round"/>';
+        }
+      }
+    }
+    return html;
+  }
+
+  function renderSingleItem(item, baselineY, forcedStemUp, offsetOverride){
+    var ev = item.ev, w = item.w;
+    if(ev.type==='chord'){
+      var noteCx = item.x + Math.min(NOTATION_UNIT_PX/2, w/2);
+      return renderNoteOrChord(noteCx, baselineY, ev, false, forcedStemUp, offsetOverride);
+    }
+    var restCx = item.x + w/2;
+    return restGlyph(restCx, baselineY, ev.units);
+  }
+
+  function renderBeamGroup(items, baselineY){
+    var html = '';
+    var allSteps = [];
+    items.forEach(function(it){ it.ev.lanes.forEach(function(l){ allSteps.push(LANE_STAFF_STEP[l]); }); });
+    var avgStep = allSteps.reduce(function(a,b){ return a+b; }, 0)/allSteps.length;
+    var stemUp = avgStep < 4;
+    var stemLen = 26;
+    var stemXOff = stemUp ? 4.2 : -4.2;
+
+    var noteInfos = items.map(function(it){
+      var steps = it.ev.lanes.map(function(l){ return LANE_STAFF_STEP[l]; });
+      var refStep = stemUp ? Math.min.apply(null, steps) : Math.max.apply(null, steps);
+      var cx = it.x + Math.min(NOTATION_UNIT_PX/2, it.w/2);
+      return {cx:cx, refStep:refStep, steps:steps};
+    });
+
+    noteInfos.forEach(function(ni){
+      var offsets = computeConjunctOffsets(ni.steps, stemUp);
+      ni.steps.forEach(function(st){
+        var cy = baselineY - st*STAFF_STEP_PX;
+        var noteCx = ni.cx + (offsets[st]||0);
+        html += noteHead(noteCx, cy, true);
+        if(st <= -2){
+          html += '<line x1="'+(noteCx-7).toFixed(1)+'" y1="'+cy.toFixed(1)+'" x2="'+(noteCx+7).toFixed(1)+'" y2="'+cy.toFixed(1)+'" stroke="#1c1c1c" stroke-width="1"/>';
+        }
+      });
+    });
+
+    var first = noteInfos[0], last = noteInfos[noteInfos.length-1];
+    var firstNoteY = baselineY - first.refStep*STAFF_STEP_PX;
+    var lastNoteY = baselineY - last.refStep*STAFF_STEP_PX;
+    var y0 = stemUp ? firstNoteY-stemLen : firstNoteY+stemLen;
+    var y1 = stemUp ? lastNoteY-stemLen : lastNoteY+stemLen;
+    var x0 = first.cx+stemXOff;
+    var x1 = last.cx+stemXOff;
+
+    noteInfos.forEach(function(ni, idx){
+      var t = noteInfos.length>1 ? idx/(noteInfos.length-1) : 0;
+      var beamY = y0 + (y1-y0)*t;
+      var stemX = ni.cx+stemXOff;
+      var noteY = baselineY - ni.refStep*STAFF_STEP_PX;
+      html += '<line x1="'+stemX.toFixed(1)+'" y1="'+noteY.toFixed(1)+'" x2="'+stemX.toFixed(1)+'" y2="'+beamY.toFixed(1)+'" stroke="#1c1c1c" stroke-width="1.2"/>';
+    });
+
+    var beamThickness = 3.2;
+    var dx = x1-x0, dy = y1-y0;
+    var len = Math.sqrt(dx*dx+dy*dy) || 1;
+    var nx = -dy/len*beamThickness/2, ny = dx/len*beamThickness/2;
+    var poly = [
+      (x0+nx).toFixed(1)+','+(y0+ny).toFixed(1),
+      (x1+nx).toFixed(1)+','+(y1+ny).toFixed(1),
+      (x1-nx).toFixed(1)+','+(y1-ny).toFixed(1),
+      (x0-nx).toFixed(1)+','+(y0-ny).toFixed(1)
+    ].join(' ');
+    html += '<polygon points="'+poly+'" fill="#1c1c1c"/>';
+    return html;
+  }
+
+  function buildStaffSystemSVG(measureEventsGroup, showClefAndMeter, isFirstSystem, isLastSystem){
+    var topPad = 16;
+    var staffTopY = topPad;
+    var baselineY = staffTopY + STAFF_LINE_GAP*4; /* bottom line (MI) */
+    var leftMargin = showClefAndMeter ? 58 : 14;
+    var x = leftMargin;
+    var svgParts = [];
+
+    var i, ly;
+    for(i=0;i<5;i++){
+      ly = staffTopY + i*STAFF_LINE_GAP;
+      svgParts.push('<line x1="8" y1="'+ly+'" x2="__WIDTH__" y2="'+ly+'" stroke="#1c1c1c" stroke-width="1"/>');
+    }
+
+    if(showClefAndMeter){
+      svgParts.push(drawClef(6, staffTopY));
+      svgParts.push('<text x="42" y="'+(staffTopY+8).toFixed(1)+'" font-size="15" font-weight="700" font-family="Georgia,serif" text-anchor="middle">'+meter+'</text>');
+      svgParts.push('<text x="42" y="'+(staffTopY+24).toFixed(1)+'" font-size="15" font-weight="700" font-family="Georgia,serif" text-anchor="middle">4</text>');
+    }
+
+    measureEventsGroup.forEach(function(events, mIdx){
+      var measureX = x;
+      var cap = capacityPerMeasure();
+
+      var laidOut = events.map(function(ev){
+        return {ev:ev, x: measureX + ev.slot*NOTATION_UNIT_PX, w: ev.units*NOTATION_UNIT_PX};
+      });
+
+      function avgStepOf(ev){
+        var steps = ev.lanes.map(function(l){ return LANE_STAFF_STEP[l]; });
+        return steps.reduce(function(a,b){ return a+b; }, 0)/steps.length;
+      }
+      var slotChords = {};
+      laidOut.forEach(function(item){
+        if(item.ev.type==='chord'){
+          if(!slotChords[item.ev.slot]){ slotChords[item.ev.slot] = []; }
+          slotChords[item.ev.slot].push(item.ev);
+        }
+      });
+      Object.keys(slotChords).forEach(function(slotKey){
+        var group = slotChords[slotKey];
+        if(group.length > 1){
+          var maxAvg = Math.max.apply(null, group.map(avgStepOf));
+          group.forEach(function(ev){ ev.__forcedStemUp = (avgStepOf(ev) >= maxAvg); });
+        }
+      });
+
+      var slotOffsets = {};
+      Object.keys(slotChords).forEach(function(slotKey){
+        var group = slotChords[slotKey];
+        if(group.length > 1){
+          var allNotes = [];
+          group.forEach(function(ev){
+            ev.lanes.forEach(function(l){ allNotes.push({lane:l, step:LANE_STAFF_STEP[l], stemUp:ev.__forcedStemUp}); });
+          });
+          var sortedNotes = allNotes.slice().sort(function(a,b){ return a.step-b.step; });
+          var offMap = {};
+          for(var si=1; si<sortedNotes.length; si++){
+            if(sortedNotes[si].step - sortedNotes[si-1].step === 1){
+              if(sortedNotes[si].stemUp){ offMap[sortedNotes[si].lane] = 7.5; }
+              else { offMap[sortedNotes[si-1].lane] = -7.5; }
+            }
+          }
+          slotOffsets[slotKey] = offMap;
+        }
+      });
+
+      var idx = 0;
+      while(idx < laidOut.length){
+        var item = laidOut[idx];
+        if(item.ev.type==='chord' && item.ev.units===1 && typeof item.ev.__forcedStemUp !== 'boolean'){
+          var j = idx;
+          while(j+1<laidOut.length){
+            var nxt = laidOut[j+1];
+            var expectedSlot = laidOut[j].ev.slot + laidOut[j].ev.units;
+            if(nxt.ev.type==='chord' && nxt.ev.units===1 && nxt.ev.slot===expectedSlot && typeof nxt.ev.__forcedStemUp !== 'boolean'){
+              j++;
+            } else { break; }
+          }
+          var runLen = j-idx+1;
+          var pos = idx;
+          var remaining = runLen;
+          while(remaining > 0){
+            var groupSize = remaining >= 4 ? 4 : (remaining >= 2 ? 2 : 1);
+            if(groupSize >= 2){
+              svgParts.push(renderBeamGroup(laidOut.slice(pos, pos+groupSize), baselineY));
+            } else {
+              svgParts.push(renderSingleItem(laidOut[pos], baselineY));
+            }
+            pos += groupSize;
+            remaining -= groupSize;
+          }
+          idx = j+1;
+        } else {
+          svgParts.push(renderSingleItem(item, baselineY, item.ev.__forcedStemUp, slotOffsets[item.ev.slot]));
+          idx++;
+        }
+      }
+
+      x = measureX + cap*NOTATION_UNIT_PX + 8;
+      var isFinalBarline = isLastSystem && (mIdx === measureEventsGroup.length-1);
+      if(isFinalBarline){
+        x += 2;
+        svgParts.push('<line x1="'+(x-2.5).toFixed(1)+'" y1="'+staffTopY+'" x2="'+(x-2.5).toFixed(1)+'" y2="'+(staffTopY+STAFF_LINE_GAP*4)+'" stroke="#1c1c1c" stroke-width="1.1"/>');
+        svgParts.push('<line x1="'+(x+1.5).toFixed(1)+'" y1="'+staffTopY+'" x2="'+(x+1.5).toFixed(1)+'" y2="'+(staffTopY+STAFF_LINE_GAP*4)+'" stroke="#1c1c1c" stroke-width="3"/>');
+        x += 4;
+      } else {
+        svgParts.push('<line x1="'+x.toFixed(1)+'" y1="'+staffTopY+'" x2="'+x.toFixed(1)+'" y2="'+(staffTopY+STAFF_LINE_GAP*4)+'" stroke="#1c1c1c" stroke-width="1.1"/>');
+      }
+      if(mIdx < measureEventsGroup.length-1){ x += 6; }
+    });
+
+    var lineEndX = Math.max(x, leftMargin+32);
+    var totalWidth = lineEndX + 8;
+    var totalHeight = staffTopY + STAFF_LINE_GAP*4 + 22;
+    var svg = svgParts.join('').split('__WIDTH__').join(lineEndX.toFixed(1));
+    return '<svg class="staff-system" viewBox="0 0 '+totalWidth.toFixed(1)+' '+totalHeight.toFixed(1)+'" style="width:100%; height:auto; display:block;">'+svg+'</svg>';
+  }
+
+  function buildNotationHTML(){
+    var allMeasures = gatherAllMeasureEvents();
+    if(allMeasures.length===0 || !hasAnyContent()){
+      return '<div class="notation-empty">Il foglio di lavoro &egrave; vuoto: non c&apos;&egrave; nulla da convertire in notazione.</div>';
+    }
+    var html = '';
+    for(var i=0;i<allMeasures.length;i+=MEASURES_PER_SYSTEM){
+      var group = allMeasures.slice(i, i+MEASURES_PER_SYSTEM);
+      var isLast = (i+MEASURES_PER_SYSTEM) >= allMeasures.length;
+      html += buildStaffSystemSVG(group, true, i===0, isLast);
+    }
+    return html;
+  }
+
+  function openNotationModal(){
+    document.getElementById('notationBody').innerHTML = buildNotationHTML();
+    var box = document.getElementById('notationModalBox');
+    box.style.position = '';
+    box.style.left = '';
+    box.style.top = '';
+    box.style.margin = '';
+    document.getElementById('notationModal').style.display = 'flex';
+  }
+  function closeNotationModal(){
+    document.getElementById('notationModal').style.display = 'none';
+  }
+
+  function setupModalDrag(){
+    var header = document.querySelector('#notationModalBox .modal-header');
+    var box = document.getElementById('notationModalBox');
+    var dragging = false, startX, startY, boxStartLeft, boxStartTop;
+    header.style.cursor = 'move';
+    header.addEventListener('pointerdown', function(e){
+      if(e.target.closest('button')){ return; }
+      if(document.fullscreenElement){ return; }
+      dragging = true;
+      var rect = box.getBoundingClientRect();
+      startX = e.clientX; startY = e.clientY;
+      boxStartLeft = rect.left; boxStartTop = rect.top;
+      box.style.position = 'fixed';
+      box.style.margin = '0';
+      box.style.left = boxStartLeft+'px';
+      box.style.top = boxStartTop+'px';
+      document.addEventListener('pointermove', onMove);
+      document.addEventListener('pointerup', onUp);
+    });
+    function onMove(e){
+      if(!dragging){ return; }
+      box.style.left = (boxStartLeft + (e.clientX-startX))+'px';
+      box.style.top = (boxStartTop + (e.clientY-startY))+'px';
+    }
+    function onUp(){
+      dragging = false;
+      document.removeEventListener('pointermove', onMove);
+      document.removeEventListener('pointerup', onUp);
+    }
+  }
+
+  function exportNotationPdf(){
+    var container = document.getElementById('notationPrintContainer');
+    container.innerHTML = document.getElementById('notationBody').innerHTML;
+    updatePrintHeader();
+    document.body.classList.add('printing-notation');
+    window.print();
+  }
+  window.addEventListener('afterprint', function(){
+    document.body.classList.remove('printing-notation');
+  });
+
+  function setupNotation(){
+    document.getElementById('notationBtn').addEventListener('click', openNotationModal);
+    document.getElementById('notationCloseBtn').addEventListener('click', closeNotationModal);
+    document.getElementById('notationPdfBtn').addEventListener('click', exportNotationPdf);
+    setupModalDrag();
+    document.getElementById('notationFullscreenBtn').addEventListener('click', function(){
+      var box = document.getElementById('notationModalBox');
+      if(!document.fullscreenElement){
+        if(box.requestFullscreen){ box.requestFullscreen().catch(function(){}); }
+      } else {
+        if(document.exitFullscreen){ document.exitFullscreen(); }
+      }
+    });
+    document.getElementById('notationModal').addEventListener('click', function(e){
+      if(e.target.id === 'notationModal'){ closeNotationModal(); }
+    });
+    document.addEventListener('keydown', function(e){
+      if(e.key === 'Escape' && !document.fullscreenElement){ closeNotationModal(); }
+    });
+  }
+
+  /* ================= Verifica: randomly fill the worksheet per chosen parameters ================= */
+  function unitsForRefId(refId){
+    return RODS_BY_ID[refId] ? RODS_BY_ID[refId].units : 0;
+  }
+
+  function closeAllVerificaDropdowns(except){
+    document.querySelectorAll('.verifica-dropdown').forEach(function(d){
+      if(d !== except){ d.classList.remove('open'); }
+    });
+  }
+
+  function toggleDropdown(dropdownEl){
+    var wasOpen = dropdownEl.classList.contains('open');
+    closeAllVerificaDropdowns();
+    if(!wasOpen){ dropdownEl.classList.add('open'); }
+  }
+
+  function buildVerificaControls(){
+    var row = document.getElementById('verificaRow');
+
+    var V_COLOR = '#0a6b47';
+    var meterIcon = '<svg viewBox="0 0 24 24" width="25" height="25">' +
+      '<text x="12" y="9" font-size="9" font-weight="800" text-anchor="middle" font-family="Georgia,serif" fill="'+V_COLOR+'">4</text>' +
+      '<text x="12" y="18" font-size="9" font-weight="800" text-anchor="middle" font-family="Georgia,serif" fill="'+V_COLOR+'">4</text></svg>';
+    var notesIcon = '<svg viewBox="0 0 24 24" width="25" height="25">' +
+      '<rect x="2" y="5" width="20" height="14" rx="1" fill="none" stroke="'+V_COLOR+'" stroke-width="1.4"/>' +
+      '<line x1="6.4" y1="5" x2="6.4" y2="19" stroke="'+V_COLOR+'" stroke-width="0.9"/>' +
+      '<line x1="10.8" y1="5" x2="10.8" y2="19" stroke="'+V_COLOR+'" stroke-width="0.9"/>' +
+      '<line x1="15.2" y1="5" x2="15.2" y2="19" stroke="'+V_COLOR+'" stroke-width="0.9"/>' +
+      '<line x1="19.6" y1="5" x2="19.6" y2="19" stroke="'+V_COLOR+'" stroke-width="0.9"/>' +
+      '<rect x="5.1" y="5" width="2.6" height="7.5" fill="'+V_COLOR+'"/>' +
+      '<rect x="9.5" y="5" width="2.6" height="7.5" fill="'+V_COLOR+'"/>' +
+      '<rect x="16.9" y="5" width="2.6" height="7.5" fill="'+V_COLOR+'"/></svg>';
+    var soundsIcon = '<svg viewBox="0 0 24 24" width="25" height="25">' +
+      '<ellipse cx="8.5" cy="16.5" rx="4" ry="3" fill="'+V_COLOR+'" transform="rotate(-15 8.5 16.5)"/>' +
+      '<line x1="12.2" y1="16.5" x2="12.2" y2="5" stroke="'+V_COLOR+'" stroke-width="1.6"/></svg>';
+    var pausesIcon = '<svg viewBox="0 0 24 24" width="25" height="25"><g transform="translate(9.3,3) scale(0.42)">' +
+      '<path d="M 1.8 0.0 L 1.5 0.3 L 1.5 1.2 L 5.9 7.1 L 5.9 8.1 L 0.3 16.5 L 0.2 18.0 L 6.2 25.5 L 3.7 25.7 L 2.2 26.4 L 1.2 27.4 L 0.3 28.9 L 0.0 31.1 L 1.2 33.6 L 5.5 39.3 L 6.6 40.0 L 6.9 39.8 L 7.1 39.0 L 4.9 35.1 L 4.5 33.8 L 5.2 31.6 L 6.7 30.4 L 8.2 30.3 L 9.6 30.8 L 11.8 32.3 L 12.4 32.3 L 12.8 31.8 L 12.4 30.9 L 5.7 22.7 L 5.9 21.8 L 11.4 13.6 L 11.4 12.4 L 2.9 0.7 Z" fill="'+V_COLOR+'"/></g></svg>';
+    var measuresIcon = '<svg viewBox="0 0 24 24" width="25" height="25">' +
+      '<rect x="3" y="5" width="18" height="14" rx="1.5" fill="none" stroke="'+V_COLOR+'" stroke-width="2"/>' +
+      '<line x1="9" y1="5" x2="9" y2="19" stroke="'+V_COLOR+'" stroke-width="1.5"/>' +
+      '<line x1="15" y1="5" x2="15" y2="19" stroke="'+V_COLOR+'" stroke-width="1.5"/></svg>';
+    var diceIcon = '<svg viewBox="0 0 24 24" width="25" height="25">' +
+      '<rect x="4" y="4" width="16" height="16" rx="3" fill="none" stroke="'+V_COLOR+'" stroke-width="2"/>' +
+      '<circle cx="8.5" cy="8.5" r="1.6" fill="'+V_COLOR+'"/><circle cx="15.5" cy="8.5" r="1.6" fill="'+V_COLOR+'"/>' +
+      '<circle cx="12" cy="12" r="1.6" fill="'+V_COLOR+'"/>' +
+      '<circle cx="8.5" cy="15.5" r="1.6" fill="'+V_COLOR+'"/><circle cx="15.5" cy="15.5" r="1.6" fill="'+V_COLOR+'"/></svg>';
+
+    var noteLabels = ["DO'",'SI','LA','SOL','FA','MI','RE','DO'];
+    var notesCheckboxes = noteLabels.map(function(name, idx){
+      return '<label><input type="checkbox" class="v-note-cb" value="'+idx+'" checked> '+name+'</label>';
+    }).join('');
+
+    var soundDefs = [{id:'whole',label:'Semibreve (4/4)'},{id:'half',label:'Minima (2/4)'},{id:'quarter',label:'Semiminima (1/4)'},{id:'eighth',label:'Croma (1/8)'}];
+    var soundsCheckboxes = soundDefs.map(function(s){
+      return '<label><input type="checkbox" class="v-sound-cb" value="'+s.id+'" checked> '+s.label+'</label>';
+    }).join('');
+
+    var pauseDefs = [{id:'whole-rest',label:'Pausa 4/4'},{id:'half-rest',label:'Pausa 2/4'},{id:'quarter-rest',label:'Pausa 1/4'},{id:'eighth-rest',label:'Pausa 1/8'}];
+    var pausesCheckboxes = pauseDefs.map(function(p){
+      return '<label><input type="checkbox" class="v-pause-cb" value="'+p.id+'" checked> '+p.label+'</label>';
+    }).join('');
+
+    row.innerHTML =
+      '<div class="dropdown-wrap">'+
+        '<button type="button" class="btn-icon" id="verificaMeterBtn" title="Scegli il metro">'+meterIcon+'</button>'+
+        '<div class="verifica-dropdown" id="verificaMeterDropdown">'+
+          '<div class="verifica-dropdown-title">Metro</div>'+
+          '<label><input type="radio" name="vmeter" value="4" checked> 4/4</label>'+
+          '<label><input type="radio" name="vmeter" value="3"> 3/4</label>'+
+          '<label><input type="radio" name="vmeter" value="2"> 2/4</label>'+
+        '</div>'+
+      '</div>'+
+      '<div class="dropdown-wrap">'+
+        '<button type="button" class="btn-icon" id="verificaNotesBtn" title="Scegli le note">'+notesIcon+'</button>'+
+        '<div class="verifica-dropdown" id="verificaNotesDropdown">'+
+          '<div class="verifica-dropdown-title">Note</div>'+notesCheckboxes+
+        '</div>'+
+      '</div>'+
+      '<div class="dropdown-wrap">'+
+        '<button type="button" class="btn-icon" id="verificaSoundsBtn" title="Scegli i regoli di suono">'+soundsIcon+'</button>'+
+        '<div class="verifica-dropdown" id="verificaSoundsDropdown">'+
+          '<div class="verifica-dropdown-title">Regoli di suono</div>'+soundsCheckboxes+
+        '</div>'+
+      '</div>'+
+      '<div class="dropdown-wrap">'+
+        '<button type="button" class="btn-icon" id="verificaPausesBtn" title="Scegli i regoli di pausa">'+pausesIcon+'</button>'+
+        '<div class="verifica-dropdown" id="verificaPausesDropdown">'+
+          '<div class="verifica-dropdown-title">Regoli di pausa</div>'+pausesCheckboxes+
+        '</div>'+
+      '</div>'+
+      '<div class="dropdown-wrap">'+
+        '<button type="button" class="btn-icon" id="verificaMeasuresBtn" title="Numero di battute">'+measuresIcon+'</button>'+
+        '<div class="verifica-dropdown" id="verificaMeasuresDropdown">'+
+          '<div class="verifica-dropdown-title">Numero di battute</div>'+
+          '<input type="number" id="verificaMeasureCount" min="1" max="64" value="8">'+
+        '</div>'+
+      '</div>'+
+      '<button type="button" class="btn-icon" id="verificaStartBtn" title="Avvia la verifica">'+diceIcon+'</button>';
+  }
+
+  function getVerificaSelections(){
+    var checkedMeter = document.querySelector('input[name="vmeter"]:checked');
+    var meterVal = parseInt(checkedMeter ? checkedMeter.value : '4', 10);
+    var notes = Array.from(document.querySelectorAll('.v-note-cb:checked')).map(function(cb){ return parseInt(cb.value,10); });
+    var sounds = Array.from(document.querySelectorAll('.v-sound-cb:checked')).map(function(cb){ return cb.value; });
+    var pauses = Array.from(document.querySelectorAll('.v-pause-cb:checked')).map(function(cb){ return cb.value; });
+    var measureCount = Math.max(1, Math.min(64, parseInt(document.getElementById('verificaMeasureCount').value,10) || 8));
+    return {meter:meterVal, notes:notes, sounds:sounds, pauses:pauses, measureCount:measureCount};
+  }
+
+  function buildMustUseQueue(sel){
+    var queue = [];
+    sel.sounds.forEach(function(id){ queue.push({units:unitsForRefId(id), kind:'sound'}); });
+    sel.pauses.forEach(function(id){ queue.push({units:unitsForRefId(id), kind:'pause'}); });
+    for(var i=queue.length-1;i>0;i--){
+      var j = Math.floor(Math.random()*(i+1));
+      var tmp = queue[i]; queue[i] = queue[j]; queue[j] = tmp;
+    }
+    return queue;
+  }
+
+  function generateRandomMeasureItems(cap, soundUnits, pauseUnits, allowedLanes, mustUseQueue){
+    var items = [];
+    var pos = 0;
+    var guard = 0;
+    while(pos < cap && guard < 200){
+      guard++;
+      var remaining = cap - pos;
+      var chosen = null;
+
+      for(var qi=0; qi<mustUseQueue.length; qi++){
+        if(mustUseQueue[qi].units <= remaining){
+          chosen = mustUseQueue[qi];
+          mustUseQueue.splice(qi,1);
+          break;
+        }
+      }
+
+      if(!chosen){
+        var candidates = [];
+        soundUnits.forEach(function(u){ if(u<=remaining){ candidates.push({units:u, kind:'sound', weight:3}); } });
+        pauseUnits.forEach(function(u){ if(u<=remaining){ candidates.push({units:u, kind:'pause', weight:1}); } });
+        if(candidates.length===0){ break; }
+        var totalWeight = candidates.reduce(function(s,c){ return s+c.weight; }, 0);
+        var r = Math.random()*totalWeight;
+        for(var ci=0; ci<candidates.length; ci++){
+          r -= candidates[ci].weight;
+          if(r<=0){ chosen = candidates[ci]; break; }
+        }
+        if(!chosen){ chosen = candidates[candidates.length-1]; }
+      }
+
+      var lane = 0;
+      if(chosen.kind==='sound'){
+        lane = allowedLanes[Math.floor(Math.random()*allowedLanes.length)];
+      }
+      items.push({slot:pos, units:chosen.units, kind:chosen.kind, lane:lane});
+      pos += chosen.units;
+    }
+    return items;
+  }
+
+  function unitsToSoundInfo(units){
+    var id = units===8?'whole':(units===4?'half':(units===2?'quarter':'eighth'));
+    return RODS_BY_ID[id];
+  }
+  function unitsToPauseInfo(units){
+    var id = units===8?'whole-rest':(units===4?'half-rest':(units===2?'quarter-rest':'eighth-rest'));
+    return RODS_BY_ID[id];
+  }
+
+  function runVerifica(){
+    var sel = getVerificaSelections();
+    var soundUnits = sel.sounds.map(unitsForRefId);
+    var pauseUnits = sel.pauses.map(unitsForRefId);
+    if(soundUnits.length===0 && pauseUnits.length===0){
+      showErrorToast('Seleziona almeno un valore ritmico (suono o pausa) per la Verifica.');
+      return;
+    }
+    if(soundUnits.length>0 && sel.notes.length===0){
+      showErrorToast('Seleziona almeno una nota per la Verifica.');
+      return;
+    }
+    pushUndo();
+    meter = sel.meter;
+    document.querySelectorAll('.meter-btn').forEach(function(b){
+      b.classList.toggle('active', parseInt(b.dataset.meter,10)===meter);
+    });
+    buildWorksheet(sel.measureCount);
+    var cap = capacityPerMeasure();
+    var mustUseQueue = buildMustUseQueue(sel);
+    for(var m=0; m<sel.measureCount; m++){
+      var lineIdx = Math.floor(m/MEASURES_PER_LINE);
+      var line = lines[lineIdx];
+      if(!line){ continue; }
+      var localIdx = m % MEASURES_PER_LINE;
+      var measureStart = localIdx*cap;
+      var items = generateRandomMeasureItems(cap, soundUnits, pauseUnits, sel.notes, mustUseQueue);
+      items.forEach(function(it){
+        var globalSlot = measureStart + it.slot;
+        var info = it.kind==='sound' ? unitsToSoundInfo(it.units) : unitsToPauseInfo(it.units);
+        if(!info){ return; }
+        var lane = it.kind==='sound' ? it.lane : 0;
+        var span = it.kind==='pause' ? LANES.length : 1;
+        if(canPlace(line, lane, globalSlot, it.units, span)){
+          placeItem(line, globalSlot, info, lane, span);
+        }
+      });
+    }
+  }
+
+  function setupVerifica(){
+    buildVerificaControls();
+
+    function wireDropdown(btnId, dropdownId){
+      var btn = document.getElementById(btnId);
+      var dd = document.getElementById(dropdownId);
+      btn.addEventListener('click', function(e){
+        e.stopPropagation();
+        toggleDropdown(dd);
+      });
+      dd.addEventListener('click', function(e){ e.stopPropagation(); });
+    }
+    wireDropdown('verificaMeterBtn','verificaMeterDropdown');
+    wireDropdown('verificaNotesBtn','verificaNotesDropdown');
+    wireDropdown('verificaSoundsBtn','verificaSoundsDropdown');
+    wireDropdown('verificaPausesBtn','verificaPausesDropdown');
+    wireDropdown('verificaMeasuresBtn','verificaMeasuresDropdown');
+
+    document.addEventListener('click', function(){ closeAllVerificaDropdowns(); });
+
+    document.getElementById('verificaStartBtn').addEventListener('click', function(){
+      closeAllVerificaDropdowns();
+      runVerifica();
+    });
+  }
+
+  /* ================= init ================= */
+  buildValuesTable();
+  buildSoundsPanel();
+  buildPausesPanel();
+  buildWorksheet(DEFAULT_MEASURES);
+  setupMeterButtons();
+  setupWorksheetToolbar();
+  setupMetronome();
+  setupPlayback();
+  setupNotation();
+  setupVerifica();
+  updateUndoRedoButtons();
+
+})();
+</script>
+</body>
+</html>
