@@ -67,8 +67,10 @@
 
   /* ----- sounds panel ----- */
   .sounds-row{display:flex; flex-direction:column; gap:12px;}
-  .rod{display:flex; align-items:center; justify-content:center; cursor:grab; user-select:none; touch-action:none; overflow:visible;}
-  .rod:active{cursor:grabbing;}
+  .rod{display:flex; align-items:center; justify-content:center; cursor:pointer; user-select:none; touch-action:none; overflow:visible; transition:transform .08s, box-shadow .08s;}
+  .rod.rod-selected{outline:3px solid #e07b00; outline-offset:2px; transform:translateY(-1px); box-shadow:0 0 0 1px #fff, 3px 4px 8px rgba(0,0,0,.25);}
+  body.rod-armed .measures-track{cursor:copy;}
+  body.rod-armed .measures-track .placed-rod{cursor:grab;}
   .rod-icon{display:flex; align-items:center; justify-content:center;}
   .rod-icon svg{height:28px; width:auto; display:block;}
   .sound-rod{border:2px solid var(--ink); border-radius:6px; box-shadow:2px 2px 0 rgba(0,0,0,.15); justify-content:flex-start;}
@@ -1100,18 +1102,19 @@
     return true; /* sound and pause rods must always fit inside a single measure */
   }
 
-  function updateDropPreview(clientX, clientY){
+  function updateDropPreview(clientX, clientY, st){
+    st = st || dragState;
     clearDropPreview();
     var line = findLineAt(clientX, clientY);
     if(!line || line.measures.length===0){ return; }
     var rect = line.track.getBoundingClientRect();
     var relX = clientX - rect.left;
-    var units = dragState.info.units;
-    var span = dragState.span;
+    var units = st.info.units;
+    var span = st.span;
     var rawSlot = Math.round(relX/UNIT_PX - units/2);
     var desiredLane = laneIndexFromY(line, clientY);
-    var constrain = constrainToMeasureFor(dragState.info);
-    var result = findBestSlotForSpanInLine(line, desiredLane, rawSlot, units, span, dragState.ignoreId, constrain);
+    var constrain = constrainToMeasureFor(st.info);
+    var result = findBestSlotForSpanInLine(line, desiredLane, rawSlot, units, span, st.ignoreId, constrain);
     var ok = result!==null;
     var totalCap = lineTotalCapacity(line);
     var slot = ok ? result.slot : Math.max(0, Math.min(totalCap-units, rawSlot));
@@ -1183,20 +1186,21 @@
     }
   }
 
-  function finalizeDrop(clientX, clientY){
+  function finalizeDrop(clientX, clientY, st){
+    st = st || dragState;
     var line = findLineAt(clientX, clientY);
     if(!line || line.measures.length===0){ return false; }
     var rect = line.track.getBoundingClientRect();
     var relX = clientX - rect.left;
-    var units = dragState.info.units;
-    var span = dragState.span;
+    var units = st.info.units;
+    var span = st.span;
     var rawSlot = Math.round(relX/UNIT_PX - units/2);
     var desiredLane = laneIndexFromY(line, clientY);
-    var constrain = constrainToMeasureFor(dragState.info);
-    var result = findBestSlotForSpanInLine(line, desiredLane, rawSlot, units, span, dragState.ignoreId, constrain);
+    var constrain = constrainToMeasureFor(st.info);
+    var result = findBestSlotForSpanInLine(line, desiredLane, rawSlot, units, span, st.ignoreId, constrain);
     if(result!==null){
       pushUndo();
-      placeItem(line, result.slot, dragState.info, result.lane, span);
+      placeItem(line, result.slot, st.info, result.lane, span);
       checkAndFillIncompleteMeasures(line, result.slot);
       return true;
     }
@@ -1278,10 +1282,65 @@
     }
   }
 
+  /* ================= insertion by selection: click a rod in the tool panels to arm it,
+     then every click on the worksheet places a copy of it, until it is deselected
+     (click it again, press Esc, or pick another rod) ================= */
+  var selectedRodId = null;
+
+  function selectedRodState(){
+    if(!selectedRodId){ return null; }
+    var info = RODS_BY_ID[selectedRodId];
+    if(!info){ return null; }
+    var span = (info.kind==='pause' && polyphonyBlocked) ? LANES.length : 1;
+    return {info:info, span:span, ignoreId:null};
+  }
+
+  function setSelectedRod(id){
+    selectedRodId = id;
+    document.querySelectorAll('.sound-rod, .pause-rod').forEach(function(r){
+      r.classList.toggle('rod-selected', r.dataset.id === id);
+    });
+    document.body.classList.toggle('rod-armed', !!id);
+    if(!id){ clearDropPreview(); }
+  }
+
   function attachDrag(el){
+    el.title = (el.title ? el.title+' - ' : '') + 'clicca per selezionare';
     el.addEventListener('pointerdown', function(e){
+      if(e.button !== 0){ return; }
       e.preventDefault();
-      startDrag(e, RODS_BY_ID[el.dataset.id], null);
+      setSelectedRod(selectedRodId === el.dataset.id ? null : el.dataset.id);
+    });
+  }
+
+  function insertionTargetLine(e){
+    if(e.target.closest && e.target.closest('.placed-rod')){ return null; }
+    if(!e.target.closest || !e.target.closest('.measures-track')){ return null; }
+    return findLineAt(e.clientX, e.clientY);
+  }
+
+  function setupSelectionInsertion(){
+    var ws = document.getElementById('worksheet');
+    ws.addEventListener('pointermove', function(e){
+      if(dragState){ return; }
+      var st = selectedRodState();
+      if(!st){ return; }
+      if(!insertionTargetLine(e)){ clearDropPreview(); return; }
+      updateDropPreview(e.clientX, e.clientY, st);
+    });
+    ws.addEventListener('pointerleave', function(){
+      if(!dragState){ clearDropPreview(); }
+    });
+    ws.addEventListener('pointerdown', function(e){
+      if(e.button !== 0 || dragState){ return; }
+      var st = selectedRodState();
+      if(!st || !insertionTargetLine(e)){ return; }
+      e.preventDefault();
+      finalizeDrop(e.clientX, e.clientY, st);
+      updateDropPreview(e.clientX, e.clientY, st);
+    });
+    document.addEventListener('keydown', function(e){
+      if(e.key === 'Escape' && selectedRodId){ setSelectedRod(null); }
     });
   }
 
@@ -2186,11 +2245,20 @@
     return html;
   }
 
-  function buildStaffSystemSVG(measureEventsGroup, showClefAndMeter, isFirstSystem, isLastSystem){
+  function buildStaffSystemSVG(measureEventsGroup, showClef, isFirstSystem, isLastSystem){
     var topPad = 16;
     var staffTopY = topPad;
     var baselineY = staffTopY + STAFF_LINE_GAP*4; /* bottom line (MI) */
-    var leftMargin = showClefAndMeter ? 58 : 14;
+    /* the time signature is written only once, on the first system right after the clef;
+       the following systems show the clef only */
+    var showMeter = showClef && isFirstSystem;
+    var LEFT_WITH_METER = 58, LEFT_CLEF_ONLY = 40;
+    var leftMargin = showClef ? (showMeter ? LEFT_WITH_METER : LEFT_CLEF_ONLY) : 14;
+    /* every system is drawn at 100% width: give the space saved by the missing time
+       signature back to the measures, so all systems keep the same scale and length */
+    var capForStretch = capacityPerMeasure();
+    var totalUnits = Math.max(1, measureEventsGroup.length*capForStretch);
+    var unitPx = NOTATION_UNIT_PX + ((showClef && !showMeter) ? (LEFT_WITH_METER-LEFT_CLEF_ONLY)/totalUnits : 0);
     var x = leftMargin;
     var svgParts = [];
 
@@ -2200,8 +2268,10 @@
       svgParts.push('<line x1="8" y1="'+ly+'" x2="__WIDTH__" y2="'+ly+'" stroke="#1c1c1c" stroke-width="1"/>');
     }
 
-    if(showClefAndMeter){
+    if(showClef){
       svgParts.push(drawClef(6, staffTopY));
+    }
+    if(showMeter){
       svgParts.push('<text x="42" y="'+(staffTopY+8).toFixed(1)+'" font-size="15" font-weight="700" font-family="Georgia,serif" text-anchor="middle">'+meter+'</text>');
       svgParts.push('<text x="42" y="'+(staffTopY+24).toFixed(1)+'" font-size="15" font-weight="700" font-family="Georgia,serif" text-anchor="middle">4</text>');
     }
@@ -2211,7 +2281,7 @@
       var cap = capacityPerMeasure();
 
       var laidOut = events.map(function(ev){
-        return {ev:ev, x: measureX + ev.slot*NOTATION_UNIT_PX, w: ev.units*NOTATION_UNIT_PX};
+        return {ev:ev, x: measureX + ev.slot*unitPx, w: ev.units*unitPx};
       });
 
       function avgStepOf(ev){
@@ -2285,7 +2355,7 @@
         }
       }
 
-      x = measureX + cap*NOTATION_UNIT_PX + 8;
+      x = measureX + cap*unitPx + 8;
       var isFinalBarline = isLastSystem && (mIdx === measureEventsGroup.length-1);
       if(isFinalBarline){
         x += 2;
@@ -2664,6 +2734,7 @@
   setupPlayback();
   setupNotation();
   setupVerifica();
+  setupSelectionInsertion();
   updateUndoRedoButtons();
   fitToolbarScale();
 
