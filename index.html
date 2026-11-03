@@ -468,10 +468,10 @@
   var MIN_SQUARE_PX = 26; /* safety floor so the grid never becomes unusably tiny on very narrow screens */
   var LABEL_COL_WIDTH = 50; /* must match .label-cell width in CSS */
   var KEYBOARD_COL_WIDTH = 58; /* must match .key-cell width in CSS */
-  var BLACK_KEY_AFTER_ROW = [false, true, true, true, false, true, true]; /* between DO'|SI, SI|LA, LA|SOL, SOL|FA, FA|MI, MI|RE, RE|DO */
+  var BLACK_KEY_AFTER_ROW = [true, false, true, true, true, false, true, true]; /* between RE'|DO', DO'|SI, SI|LA, LA|SOL, SOL|FA, FA|MI, MI|RE, RE|DO */
   var ROW_H_PX    = 52;   /* worksheet lane height -- also the height of every toolbar rod (suoni AND pause) */
   var UNIT_PX     = SQUARE_PX/2; /* one eighth-note unit on the worksheet */
-  var LANES = ["DO'",'SI','LA','SOL','FA','MI','RE','DO']; /* top to bottom, fixed -- DO' is the high octave */
+  var LANES = ["RE'","DO'",'SI','LA','SOL','FA','MI','RE','DO']; /* top to bottom, fixed -- DO' and RE' are the high octave */
   var MEASURES_PER_LINE = 8; /* always 8 columns per line, regardless of meter */
   var DEFAULT_MEASURES = 8;
 
@@ -1462,7 +1462,8 @@
   function serializeSession(){
     return {
       app:'regoli-ritmici',
-      version:7,
+      version:8,
+      laneCount: LANES.length,
       meter:meter,
       bpm:bpm,
       polyBlocked:polyphonyBlocked,
@@ -1504,6 +1505,7 @@
       });
     }
     buildWorksheet(Math.max(totalMeasures, 1));
+    var migrateFrom8Lanes = (data.laneCount !== LANES.length);
 
     lineData.forEach(function(items, idx){
       if(idx>=lines.length){ return; }
@@ -1513,6 +1515,12 @@
         if(!info){ return; }
         var span = it.span || 1;
         var lane = it.lane || 0;
+        if(migrateFrom8Lanes){
+          /* files saved before RE' existed had 8 lanes starting at DO': shift everything down one row,
+             and keep full-column pauses full-column */
+          if(info.kind==='pause' && span >= 8){ lane = 0; span = LANES.length; }
+          else { lane = lane + 1; }
+        }
         if(canPlace(line, lane, it.slot, info.units, span)){
           placeItem(line, it.slot, info, lane, span);
         }
@@ -1770,7 +1778,7 @@
   }
 
   /* ================= playback: perform the notes and rests written on the worksheet ================= */
-  var LANE_FREQ = [523.25, 493.88, 440.00, 392.00, 349.23, 329.63, 293.66, 261.63]; /* DO' SI LA SOL FA MI RE DO */
+  var LANE_FREQ = [587.33, 523.25, 493.88, 440.00, 392.00, 349.23, 329.63, 293.66, 261.63]; /* RE' DO' SI LA SOL FA MI RE DO */
   var PLAYBACK_LOOKAHEAD = 0.15;
   var PLAYBACK_TICK_MS = 25;
 
@@ -2010,8 +2018,8 @@
 
   /* ================= convert worksheet content to conventional staff notation ================= */
   /* Staff step 0 = bottom line (MI/E4); each unit = one half-step position (line<->space).
-     Matches LANES = ["DO'",'SI','LA','SOL','FA','MI','RE','DO'] in order. */
-  var LANE_STAFF_STEP = [5, 4, 3, 2, 1, 0, -1, -2];
+     Matches LANES = ["RE'","DO'",'SI','LA','SOL','FA','MI','RE','DO'] in order (RE' sits on the 4th line). */
+  var LANE_STAFF_STEP = [6, 5, 4, 3, 2, 1, 0, -1, -2];
   var STAFF_STEP_PX = 4;      /* half of the line-to-line gap */
   var STAFF_LINE_GAP = 8;
   var NOTATION_UNIT_PX = 20;  /* px per eighth-note unit in the generated notation */
@@ -2513,7 +2521,7 @@
       '<circle cx="12" cy="12" r="1.6" fill="'+V_COLOR+'"/>' +
       '<circle cx="8.5" cy="15.5" r="1.6" fill="'+V_COLOR+'"/><circle cx="15.5" cy="15.5" r="1.6" fill="'+V_COLOR+'"/></svg>';
 
-    var noteLabels = ["DO'",'SI','LA','SOL','FA','MI','RE','DO'];
+    var noteLabels = LANES.slice();
     var notesCheckboxes = noteLabels.map(function(name, idx){
       return '<label><input type="checkbox" class="v-note-cb" value="'+idx+'" checked> '+name+'</label>';
     }).join('');
