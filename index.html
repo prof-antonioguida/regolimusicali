@@ -1174,10 +1174,10 @@
               cursor += u;
             });
             filledAny = true;
+            if(incompleteMeasureNumbers.indexOf(m+1)===-1){ incompleteMeasureNumbers.push(m+1); }
             gapStart = -1;
           }
         }
-        incompleteMeasureNumbers.push(m+1);
       }
     }
     if(filledAny){
