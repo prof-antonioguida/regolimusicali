@@ -47,7 +47,7 @@
   .titlebar-field{display:flex; align-items:center; gap:8px; font-size:.85rem; font-weight:700; color:#333;}
   .titlebar-field input{padding:6px 10px; border:2px solid var(--ink); border-radius:6px; font-size:.9rem; width:220px; font-family:inherit;}
 
-  .toolbar-scale-wrap{flex-shrink:0; width:100%;}
+  .toolbar-scale-wrap{flex-shrink:0; width:100%; position:relative; z-index:20;}
   .toolbar{display:flex; flex-wrap:nowrap; gap:18px; align-items:stretch; padding:14px 24px; flex-shrink:0; width:max-content; transform-origin:top left;}
 
   .panel{background:#fff; border:3px solid var(--ink); border-radius:var(--radius); padding:14px; box-shadow:3px 3px 0 rgba(0,0,0,.08); height:296px; overflow:hidden;}
@@ -71,6 +71,31 @@
   .rod.rod-selected{outline:3px solid #e07b00; outline-offset:2px; transform:translateY(-1px); box-shadow:0 0 0 1px #fff, 3px 4px 8px rgba(0,0,0,.25);}
   body.rod-armed .measures-track{cursor:copy;}
   body.rod-armed .measures-track .placed-rod{cursor:grab;}
+  /* ----- measure selection tool (arrow) ----- */
+  .btn-icon.tool-active{background:#fff1dc; box-shadow:0 0 0 3px #e07b00;}
+  .btn-icon.tool-active:hover{background:#ffe6c2;}
+  .btn-icon.dim{opacity:.38;}
+  body.measure-mode .measures-track{cursor:pointer; -webkit-user-select:none; user-select:none; -webkit-touch-callout:none;}
+  body.measure-mode .measure-number-cell{cursor:pointer;}
+  body.measure-mode .placed-rod{pointer-events:none;}
+  .measure.measure-selected::after{content:''; position:absolute; inset:0; background:rgba(37,99,235,.14); box-shadow:inset 0 0 0 3px #2563eb; pointer-events:none; z-index:4;}
+  .measure-number-cell.measure-selected{background:#2563eb; color:#fff; border-radius:5px;}
+  .measure.measure-pressing::before{content:''; position:absolute; left:0; bottom:0; height:6px; width:0; background:#e07b00; pointer-events:none; z-index:5; animation:measurePressBar .5s linear forwards;}
+  @keyframes measurePressBar{ from{width:0;} to{width:100%;} }
+  .measure.measure-flash::after{content:''; position:absolute; inset:0; pointer-events:none; z-index:4; animation:measureFlash 1.4s ease-out forwards;}
+  .measure.measure-selected.measure-flash::after{animation:none;}
+  @keyframes measureFlash{ from{background:rgba(46,139,61,.35);} to{background:rgba(46,139,61,0);} }
+  .measure-popover{position:absolute; top:44px; left:0; background:#fff; border:2px solid var(--ink); border-radius:8px; padding:10px 12px; z-index:60; box-shadow:0 6px 18px rgba(0,0,0,.18); display:none; width:206px;}
+  .measure-popover.open{display:block;}
+  .measure-popover .mp-title{font-size:.72rem; font-weight:800; color:#666; text-transform:uppercase; margin-bottom:6px;}
+  .measure-popover .mp-row{display:flex; align-items:center; gap:8px; font-size:.85rem; font-weight:700;}
+  .measure-popover input[type=number]{width:64px; padding:4px 6px; font-size:1rem; font-weight:700; border:2px solid var(--ink); border-radius:6px; font-family:inherit;}
+  .measure-popover .mp-where{font-size:.78rem; color:#444; margin:7px 0 9px; line-height:1.25;}
+  .measure-popover .mp-actions{display:flex; gap:6px; justify-content:flex-end;}
+  .measure-popover .mp-actions button{border:2px solid var(--ink); border-radius:6px; background:#fff; font-weight:700; font-size:.82rem; padding:4px 10px; cursor:pointer; font-family:inherit;}
+  .measure-popover .mp-actions button.primary{background:var(--green); color:#fff;}
+  .measure-popover .mp-actions button:hover{filter:brightness(.95);}
+  .error-toast.info-toast{background:#1c1c1c;}
   .rod-icon{display:flex; align-items:center; justify-content:center;}
   .rod-icon svg{height:28px; width:auto; display:block;}
   .sound-rod{border:2px solid var(--ink); border-radius:6px; box-shadow:2px 2px 0 rgba(0,0,0,.15); justify-content:flex-start;}
@@ -201,6 +226,8 @@
     .worksheet-wrap{ overflow:visible; margin:0; box-shadow:none; width:fit-content; max-width:100%; }
     #printScaleBox{ transform-origin: top left; }
     .worksheet-line{ page-break-inside: avoid; break-inside: avoid; }
+    .measure::before, .measure::after{ display:none !important; }
+    .measure-number-cell.measure-selected{ background:none !important; color:#666 !important; }
     body.printing-notation .worksheet-section{ display:none !important; }
     .modal-overlay{ display:none !important; }
     body.printing-notation .notation-print-only{ display:block !important; margin:10px 24px; }
@@ -299,7 +326,8 @@
           <line x1="16.7" y1="19" x2="21.3" y2="19" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/>
         </svg>
       </button>
-      <button type="button" class="btn-icon" id="addMeasureBtn" title="Aggiungi misura">
+      <div class="dropdown-wrap" id="addMeasureWrap">
+      <button type="button" class="btn-icon" id="addMeasureBtn" title="Aggiungi misure" aria-haspopup="true">
         <svg viewBox="0 0 24 24" width="20" height="20">
           <rect x="3" y="5" width="14" height="14" rx="1.5" fill="none" stroke="#1c1c1c" stroke-width="2"/>
           <line x1="9" y1="5" x2="9" y2="19" stroke="#1c1c1c" stroke-width="1.5"/>
@@ -307,6 +335,32 @@
           <circle cx="19" cy="19" r="5" fill="#2e8b3d" stroke="#1c1c1c" stroke-width="1.3"/>
           <line x1="19" y1="16.7" x2="19" y2="21.3" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/>
           <line x1="16.7" y1="19" x2="21.3" y2="19" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/>
+        </svg>
+      </button>
+      <div class="measure-popover" id="addMeasurePopover" role="dialog" aria-label="Aggiungi misure">
+        <div class="mp-title">Aggiungi misure</div>
+        <label class="mp-row" for="addMeasureCount">Quante misure?
+          <input type="number" id="addMeasureCount" min="1" max="64" step="1" value="1" inputmode="numeric">
+        </label>
+        <div class="mp-where" id="addMeasureWhere"></div>
+        <div class="mp-actions">
+          <button type="button" id="addMeasureCancel">Annulla</button>
+          <button type="button" id="addMeasureConfirm" class="primary">Aggiungi</button>
+        </div>
+      </div>
+      </div>
+      <button type="button" class="btn-icon" id="selectModeBtn" title="Seleziona misure: click per posizionarti su una misura, click lungo per selezionarne pi&ugrave; di una" aria-pressed="false">
+        <svg viewBox="0 0 24 24" width="20" height="20">
+          <path d="M6 2.8 L6 19.2 L10.1 15.3 L12.9 21.4 L15.7 20.1 L12.9 14.1 L18.6 14.1 Z" fill="#1c1c1c" stroke="#1c1c1c" stroke-width="1" stroke-linejoin="round"/>
+        </svg>
+      </button>
+      <button type="button" class="btn-icon dim" id="trashBtn" title="Elimina le misure selezionate">
+        <svg viewBox="0 0 24 24" width="20" height="20">
+          <path d="M9.5 5.5 V3.6 H14.5 V5.5" fill="none" stroke="#1c1c1c" stroke-width="1.7" stroke-linejoin="round"/>
+          <line x1="4" y1="6" x2="20" y2="6" stroke="#1c1c1c" stroke-width="2" stroke-linecap="round"/>
+          <path d="M6 6.2 L7.2 21 H16.8 L18 6.2 Z" fill="#f3c2bc" stroke="#1c1c1c" stroke-width="1.7" stroke-linejoin="round"/>
+          <line x1="10" y1="9.5" x2="10.3" y2="18" stroke="#1c1c1c" stroke-width="1.4" stroke-linecap="round"/>
+          <line x1="14" y1="9.5" x2="13.7" y2="18" stroke="#1c1c1c" stroke-width="1.4" stroke-linecap="round"/>
         </svg>
       </button>
       <button type="button" class="btn-icon" id="clearBtn" title="Pulisci foglio">
@@ -891,6 +945,8 @@
     lines = [];
     var i;
     for(i=0;i<totalMeasures;i++){ addMeasure(); }
+    selectedMeasures = [];
+    refreshMeasureSelectionUI();
   }
 
   function allMeasuresFlat(){
@@ -1130,9 +1186,10 @@
   }
 
   var errorToastTimer = null;
-  function showErrorToast(msg){
+  function showErrorToast(msg, isInfo){
     var el = document.getElementById('errorToast');
     el.textContent = msg;
+    el.classList.toggle('info-toast', !!isInfo);
     el.style.display = 'block';
     window.clearTimeout(errorToastTimer);
     errorToastTimer = window.setTimeout(function(){ el.style.display = 'none'; }, 4000);
@@ -1296,6 +1353,7 @@
   }
 
   function setSelectedRod(id){
+    if(id && measureMode){ setMeasureMode(false); }
     selectedRodId = id;
     document.querySelectorAll('.sound-rod, .pause-rod').forEach(function(r){
       r.classList.toggle('rod-selected', r.dataset.id === id);
@@ -1344,6 +1402,318 @@
     });
   }
 
+  /* ================= measure selection (arrow tool) =================
+     With the arrow active: a click on a measure positions the cursor on it (it becomes the only
+     selected measure), a long click adds it to / removes it from the selection. The trash deletes
+     every selected measure; "Aggiungi misure" inserts the new measures right after the measure the
+     cursor is on (the last one selected), or at the end of the sheet when nothing is selected. */
+  var measureMode = false;
+  var selectedMeasures = [];     /* 0-based global measure indices, in the order they were selected */
+  var LONG_PRESS_MS = 500;
+  var MAX_ADD_MEASURES = 64;
+  var measurePress = null;
+
+  function joinItalian(list){
+    if(list.length<=1){ return list.join(''); }
+    return list.slice(0,-1).join(', ')+' e '+list[list.length-1];
+  }
+
+  function refreshMeasureSelectionUI(){
+    var flat = allMeasuresFlat();
+    var seen = {};
+    selectedMeasures = selectedMeasures.filter(function(g){
+      if(g<0 || g>=flat.length || seen[g]){ return false; }
+      seen[g] = true;
+      return true;
+    });
+    flat.forEach(function(m, g){ m.el.classList.toggle('measure-selected', !!seen[g]); });
+    lines.forEach(function(line, li){
+      var cells = line.numbersRow.querySelectorAll('.measure-number-cell');
+      cells.forEach(function(cell, ci){ cell.classList.toggle('measure-selected', !!seen[li*MEASURES_PER_LINE+ci]); });
+    });
+    var trash = document.getElementById('trashBtn');
+    if(trash){ trash.classList.toggle('dim', selectedMeasures.length===0); }
+  }
+
+  function setMeasureMode(on){
+    measureMode = !!on;
+    document.body.classList.toggle('measure-mode', measureMode);
+    var btn = document.getElementById('selectModeBtn');
+    btn.classList.toggle('tool-active', measureMode);
+    btn.setAttribute('aria-pressed', measureMode ? 'true' : 'false');
+    cancelMeasurePress();
+    if(measureMode){
+      if(selectedRodId){ setSelectedRod(null); }
+      showErrorToast('Click su una misura per posizionarti. Click lungo per selezionare pi\u00F9 misure.', true);
+    } else {
+      selectedMeasures = [];
+    }
+    refreshMeasureSelectionUI();
+  }
+
+  /* global index of the measure under the pointer (measure body or its number), or -1 */
+  function measureIndexAtEvent(e){
+    var t = e.target;
+    if(!t || !t.closest){ return -1; }
+    if(!t.closest('.measures-track') && !t.closest('.measure-number-cell')){ return -1; }
+    var li, mi;
+    for(li=0; li<lines.length; li++){
+      var line = lines[li];
+      var lr = line.el.getBoundingClientRect();
+      if(e.clientY < lr.top || e.clientY > lr.bottom){ continue; }
+      for(mi=0; mi<line.measures.length; mi++){
+        var r = line.measures[mi].el.getBoundingClientRect();
+        if(e.clientX >= r.left && e.clientX < r.right){ return li*MEASURES_PER_LINE+mi; }
+      }
+      return -1;
+    }
+    return -1;
+  }
+
+  function toggleMeasureInSelection(g){
+    var pos = selectedMeasures.indexOf(g);
+    if(pos===-1){ selectedMeasures.push(g); } else { selectedMeasures.splice(pos,1); }
+    refreshMeasureSelectionUI();
+  }
+
+  function cancelMeasurePress(){
+    if(!measurePress){ return; }
+    window.clearTimeout(measurePress.timer);
+    measurePress.el.classList.remove('measure-pressing');
+    measurePress = null;
+  }
+
+  /* where "Aggiungi misure" will insert: after the measure the cursor is on, or -1 = at the end */
+  function insertionAnchor(){
+    if(!measureMode || selectedMeasures.length===0){ return -1; }
+    return selectedMeasures[selectedMeasures.length-1];
+  }
+
+  /* every placed rod with its slot counted from the start of the sheet */
+  function flatItems(){
+    var lineCap = MEASURES_PER_LINE*capacityPerMeasure();
+    var out = [];
+    lines.forEach(function(l, li){
+      l.items.forEach(function(it){
+        out.push({refId:it.refId, gslot:li*lineCap+it.slot, units:it.units, lane:it.lane, span:it.span});
+      });
+    });
+    return out;
+  }
+
+  /* rebuild the sheet with a new number of measures and a new list of rods (global slots) */
+  function rebuildFromFlat(measureCount, items){
+    var scroller = document.querySelector('.worksheet-section');
+    var keepScroll = scroller ? scroller.scrollTop : 0;
+    var lineCap = MEASURES_PER_LINE*capacityPerMeasure();
+    var data = serializeSession();
+    var nLines = Math.ceil(measureCount/MEASURES_PER_LINE);
+    var i;
+    data.measureCount = measureCount;
+    data.lines = [];
+    for(i=0;i<nLines;i++){ data.lines.push([]); }
+    items.forEach(function(it){
+      var li = Math.floor(it.gslot/lineCap);
+      if(li<0 || li>=nLines){ return; }
+      data.lines[li].push({refId:it.refId, slot:it.gslot-li*lineCap, lane:it.lane, span:it.span});
+    });
+    applySessionData(data);
+    if(scroller){ scroller.scrollTop = keepScroll; }
+  }
+
+  function flashMeasures(from, count){
+    var flat = allMeasuresFlat();
+    var g;
+    for(g=from; g<from+count && g<flat.length; g++){
+      (function(el){
+        el.classList.remove('measure-flash');
+        void el.offsetWidth;
+        el.classList.add('measure-flash');
+        window.setTimeout(function(){ el.classList.remove('measure-flash'); }, 1500);
+      })(flat[g].el);
+    }
+    if(flat[from]){
+      var lineIdx = Math.floor(from/MEASURES_PER_LINE);
+      if(lines[lineIdx]){ lines[lineIdx].el.scrollIntoView({behavior:'smooth', block:'nearest'}); }
+    }
+  }
+
+  function addMeasuresAfter(anchor, count){
+    var total = allMeasuresFlat().length;
+    var firstNew, i;
+    pushUndo();
+    if(anchor<0 || anchor>=total-1){
+      for(i=0;i<count;i++){ addMeasure(); }
+      firstNew = total;
+    } else {
+      var cap = capacityPerMeasure();
+      var items = flatItems().map(function(it){
+        var startMeasure = Math.floor(it.gslot/cap);
+        if(startMeasure > anchor){ it.gslot += count*cap; }
+        return it;
+      });
+      rebuildFromFlat(total+count, items);
+      firstNew = anchor+1;
+    }
+    /* the cursor moves onto the last added measure, so the next insertion continues after it */
+    selectedMeasures = (measureMode && anchor>=0) ? [firstNew+count-1] : [];
+    refreshMeasureSelectionUI();
+    flashMeasures(firstNew, count);
+    var what = count===1 ? 'Aggiunta 1 misura' : 'Aggiunte '+count+' misure';
+    var where = (anchor>=0 && anchor<total-1) ? ' dopo la misura '+(anchor+1)+'.' : ' in fondo al foglio.';
+    showErrorToast(what+where, true);
+  }
+
+  function deleteSelectedMeasures(){
+    if(!measureMode || selectedMeasures.length===0){
+      showErrorToast('Nessuna misura selezionata: attiva la freccia e fai un click lungo sulle misure da eliminare.');
+      return;
+    }
+    var total = allMeasuresFlat().length;
+    var del = selectedMeasures.slice().sort(function(a,b){ return a-b; });
+    if(del.length >= total){
+      showErrorToast('Non puoi eliminare tutte le misure: per svuotare il foglio usa "Pulisci foglio".');
+      return;
+    }
+    var cap = capacityPerMeasure();
+    var isDeleted = {};
+    del.forEach(function(g){ isDeleted[g] = true; });
+    var items = flatItems();
+    var hasContent = items.some(function(it){
+      var m;
+      for(m=Math.floor(it.gslot/cap); m<=Math.floor((it.gslot+it.units-1)/cap); m++){ if(isDeleted[m]){ return true; } }
+      return false;
+    });
+    var numbers = joinItalian(del.map(function(g){ return g+1; }));
+    if(hasContent){
+      var question = del.length===1 ?
+        'Eliminare la misura '+numbers+'? I regoli che contiene verranno cancellati.' :
+        'Eliminare le misure '+numbers+'? I regoli che contengono verranno cancellati.';
+      if(!window.confirm(question)){ return; }
+    }
+    pushUndo();
+    var kept = [];
+    items.forEach(function(it){
+      var mStart = Math.floor(it.gslot/cap);
+      var mEnd = Math.floor((it.gslot+it.units-1)/cap);
+      var m, removed = false;
+      for(m=mStart; m<=mEnd; m++){ if(isDeleted[m]){ removed = true; } }
+      if(removed){ return; }
+      var shift = 0;
+      del.forEach(function(g){ if(g < mStart){ shift++; } });
+      it.gslot -= shift*cap;
+      kept.push(it);
+    });
+    rebuildFromFlat(total-del.length, kept);
+    selectedMeasures = [];
+    refreshMeasureSelectionUI();
+    showErrorToast((del.length===1 ? 'Misura '+numbers+' eliminata.' : 'Misure '+numbers+' eliminate.'), true);
+  }
+
+  /* ----- the small "how many measures?" box under the add button ----- */
+  function closeAddMeasurePopover(){
+    var pop = document.getElementById('addMeasurePopover');
+    pop.classList.remove('open');
+    if(document.activeElement && pop.contains(document.activeElement)){ document.activeElement.blur(); }
+  }
+  function toggleAddMeasurePopover(){
+    var pop = document.getElementById('addMeasurePopover');
+    if(pop.classList.contains('open')){ closeAddMeasurePopover(); return; }
+    if(typeof closeAllVerificaDropdowns === 'function'){ closeAllVerificaDropdowns(); }
+    var anchor = insertionAnchor();
+    var total = allMeasuresFlat().length;
+    document.getElementById('addMeasureWhere').textContent = (anchor>=0 && anchor<total-1) ?
+      'Saranno inserite dopo la misura '+(anchor+1)+'.' :
+      'Saranno inserite in fondo al foglio.';
+    var input = document.getElementById('addMeasureCount');
+    input.value = '1';
+    pop.classList.add('open');
+    input.focus();
+    input.select();
+  }
+  function confirmAddMeasures(){
+    var input = document.getElementById('addMeasureCount');
+    var n = parseInt(input.value, 10);
+    if(isNaN(n) || n<1 || n>MAX_ADD_MEASURES){
+      showErrorToast('Scrivi un numero di misure da 1 a '+MAX_ADD_MEASURES+'.');
+      input.focus();
+      input.select();
+      return;
+    }
+    var anchor = insertionAnchor();
+    closeAddMeasurePopover();
+    addMeasuresAfter(anchor, n);
+  }
+
+  function setupMeasureSelection(){
+    var ws = document.getElementById('worksheet');
+    ws.addEventListener('pointerdown', function(e){
+      if(!measureMode || e.button!==0){ return; }
+      var g = measureIndexAtEvent(e);
+      if(g<0){ return; }
+      e.preventDefault();
+      if(e.ctrlKey || e.metaKey){ toggleMeasureInSelection(g); return; }
+      cancelMeasurePress();
+      var el = allMeasuresFlat()[g].el;
+      el.classList.add('measure-pressing');
+      var press = {g:g, el:el, x:e.clientX, y:e.clientY, fired:false, timer:null};
+      press.timer = window.setTimeout(function(){
+        press.fired = true;
+        el.classList.remove('measure-pressing');
+        toggleMeasureInSelection(g);
+        if(navigator.vibrate){ try{ navigator.vibrate(25); }catch(err){} }
+      }, LONG_PRESS_MS);
+      measurePress = press;
+    });
+    document.addEventListener('pointermove', function(e){
+      if(!measurePress || measurePress.fired){ return; }
+      if(Math.abs(e.clientX-measurePress.x) > 10 || Math.abs(e.clientY-measurePress.y) > 10){ cancelMeasurePress(); }
+    });
+    document.addEventListener('pointerup', function(){
+      if(!measurePress){ return; }
+      var press = measurePress;
+      window.clearTimeout(press.timer);
+      press.el.classList.remove('measure-pressing');
+      measurePress = null;
+      if(press.fired){ return; }
+      /* short click: position the cursor on this measure (click it again to leave it) */
+      if(selectedMeasures.length===1 && selectedMeasures[0]===press.g){ selectedMeasures = []; }
+      else { selectedMeasures = [press.g]; }
+      refreshMeasureSelectionUI();
+    });
+    document.addEventListener('pointercancel', cancelMeasurePress);
+    ws.addEventListener('contextmenu', function(e){
+      if(measureMode){ e.preventDefault(); }
+    });
+
+    var pop = document.getElementById('addMeasurePopover');
+    pop.addEventListener('click', function(e){ e.stopPropagation(); });
+    pop.addEventListener('pointerdown', function(e){ e.stopPropagation(); });
+    document.getElementById('addMeasureConfirm').addEventListener('click', confirmAddMeasures);
+    document.getElementById('addMeasureCancel').addEventListener('click', closeAddMeasurePopover);
+    document.getElementById('addMeasureCount').addEventListener('keydown', function(e){
+      if(e.key==='Enter'){ e.preventDefault(); confirmAddMeasures(); }
+      else if(e.key==='Escape'){ e.preventDefault(); e.stopPropagation(); closeAddMeasurePopover(); }
+    });
+    document.addEventListener('pointerdown', function(e){
+      if(!e.target.closest || !e.target.closest('#addMeasureWrap')){ closeAddMeasurePopover(); }
+    }, true);
+
+    document.addEventListener('keydown', function(e){
+      if(!measureMode || e.defaultPrevented){ return; }
+      var tag = (e.target && e.target.tagName) ? e.target.tagName.toLowerCase() : '';
+      if(tag==='input' || tag==='textarea' || tag==='select'){ return; }
+      if(document.getElementById('notationModal').style.display !== 'none'){ return; }
+      if(e.key==='Escape'){
+        if(selectedMeasures.length>0){ selectedMeasures = []; refreshMeasureSelectionUI(); }
+        else { setMeasureMode(false); }
+      } else if((e.key==='Delete' || e.key==='Backspace') && selectedMeasures.length>0){
+        e.preventDefault();
+        deleteSelectedMeasures();
+      }
+    }, true);
+  }
+
   /* ================= meter (time signature) controls ================= */
   function setupMeterButtons(){
     var btns = document.querySelectorAll('.meter-btn');
@@ -1364,14 +1734,19 @@
 
   /* ================= worksheet toolbar buttons ================= */
   function setupWorksheetToolbar(){
-    document.getElementById('addMeasureBtn').addEventListener('click', function(){
-      pushUndo();
-      addMeasure();
+    document.getElementById('addMeasureBtn').addEventListener('click', function(e){
+      e.stopPropagation();
+      toggleAddMeasurePopover();
     });
     document.getElementById('removeMeasureBtn').addEventListener('click', function(){
       pushUndo();
       removeMeasure();
+      refreshMeasureSelectionUI();
     });
+    document.getElementById('selectModeBtn').addEventListener('click', function(){
+      setMeasureMode(!measureMode);
+    });
+    document.getElementById('trashBtn').addEventListener('click', deleteSelectedMeasures);
     document.getElementById('clearBtn').addEventListener('click', function(){
       if(window.confirm('Vuoi svuotare il foglio di lavoro?')){
         pushUndo();
@@ -2261,12 +2636,18 @@
        the following systems show the clef only */
     var showMeter = showClef && isFirstSystem;
     var LEFT_WITH_METER = 58, LEFT_CLEF_ONLY = 40;
+    var MEASURE_TAIL = 8, MEASURE_GAP = 6, FINAL_BAR_EXTRA = 6;
     var leftMargin = showClef ? (showMeter ? LEFT_WITH_METER : LEFT_CLEF_ONLY) : 14;
-    /* every system is drawn at 100% width: give the space saved by the missing time
-       signature back to the measures, so all systems keep the same scale and length */
+    /* every system is drawn at 100% width, so every system must have exactly the same
+       drawing width: otherwise a shorter system (for example the last one with fewer
+       measures, or one without the time signature) would be enlarged on screen.
+       The reference is a full system of MEASURES_PER_SYSTEM measures with clef and time
+       signature; every system stretches or shrinks its rhythmic spacing to end exactly there. */
     var capForStretch = capacityPerMeasure();
-    var totalUnits = Math.max(1, measureEventsGroup.length*capForStretch);
-    var unitPx = NOTATION_UNIT_PX + ((showClef && !showMeter) ? (LEFT_WITH_METER-LEFT_CLEF_ONLY)/totalUnits : 0);
+    var nMeasures = Math.max(1, measureEventsGroup.length);
+    var referenceEndX = LEFT_WITH_METER + MEASURES_PER_SYSTEM*(capForStretch*NOTATION_UNIT_PX + MEASURE_TAIL) + (MEASURES_PER_SYSTEM-1)*MEASURE_GAP;
+    var fixedPx = leftMargin + nMeasures*MEASURE_TAIL + (nMeasures-1)*MEASURE_GAP + (isLastSystem ? FINAL_BAR_EXTRA : 0);
+    var unitPx = (referenceEndX - fixedPx)/(nMeasures*capForStretch);
     var x = leftMargin;
     var svgParts = [];
 
@@ -2377,7 +2758,7 @@
     });
 
     var lineEndX = Math.max(x, leftMargin+32);
-    var totalWidth = lineEndX + 8;
+    var totalWidth = referenceEndX + 8;
     var totalHeight = staffTopY + STAFF_LINE_GAP*4 + 22;
     var svg = svgParts.join('').split('__WIDTH__').join(lineEndX.toFixed(1));
     return '<svg class="staff-system" viewBox="0 0 '+totalWidth.toFixed(1)+' '+totalHeight.toFixed(1)+'" style="width:100%; height:auto; display:block;">'+svg+'</svg>';
@@ -2743,6 +3124,7 @@
   setupNotation();
   setupVerifica();
   setupSelectionInsertion();
+  setupMeasureSelection();
   updateUndoRedoButtons();
   fitToolbarScale();
 
